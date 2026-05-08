@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mythosforge
+      POSTGRES_PASSWORD: mythosforge
+      POSTGRES_DB: mythosforge
+    ports:
+      - "5432:5432"
+    volumes:
+      - mythosforge_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mythosforge -d mythosforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - mythosforge_qdrant:/qdrant/storage
+
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/mythosforge
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - mythosforge_neo4j:/data
+
+volumes:
+  mythosforge_pg:
+  mythosforge_qdrant:
+  mythosforge_neo4j:
