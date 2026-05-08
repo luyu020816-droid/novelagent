@@ -2,8 +2,10 @@ package com.mythosforge.project;
 
 import com.mythosforge.project.dto.ProjectCreateRequest;
 import com.mythosforge.project.dto.ProjectResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,6 +22,13 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public List<ProjectResponse> list() {
         return projectRepository.findAll().stream().map(ProjectResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ProjectResponse getById(String id) {
+        return projectRepository.findById(id)
+                .map(ProjectResponse::from)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
     @Transactional

@@ -11,8 +11,28 @@ export type Project = {
   updatedAt: string;
 };
 
+export type WriterProbeResult = {
+  ok: boolean;
+  responseBody: string | null;
+  error: string | null;
+};
+
+export type WriterEngineStatus = {
+  health: WriterProbeResult;
+  test: WriterProbeResult;
+};
+
+export type ProjectDetail = {
+  project: Project;
+  writerEngine: WriterEngineStatus;
+};
+
 export function listProjects(): Promise<Project[]> {
   return apiJson<Project[]>("/api/projects");
+}
+
+export function getProjectDetail(projectId: string): Promise<ProjectDetail> {
+  return apiJson<ProjectDetail>(`/api/projects/${encodeURIComponent(projectId)}/detail`);
 }
 
 export function createProject(body: {

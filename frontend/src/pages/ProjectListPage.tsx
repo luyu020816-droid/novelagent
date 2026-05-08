@@ -25,7 +25,10 @@ export default function ProjectListPage() {
         <ul>
           {items.map((p) => (
             <li key={p.id}>
-              <strong>{p.name}</strong> — {p.status} — {p.language}
+              <Link to={`/projects/${p.id}`}>
+                <strong>{p.name}</strong>
+              </Link>{" "}
+              — {p.status} — {p.language}
             </li>
           ))}
         </ul>
