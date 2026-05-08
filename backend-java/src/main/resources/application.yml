@@ -1,5 +1,7 @@
 server:
   port: 8080
+  error:
+    include-message: always
 
 mythosforge:
   writer:
@@ -20,3 +22,9 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+# Genre 422/502 排查：出站 RestClient + WriterEngineClient 调试日志
+logging:
+  level:
+    com.mythosforge.writer.WriterEngineClient: DEBUG
+    org.springframework.web.client.RestClient: DEBUG

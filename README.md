@@ -165,3 +165,31 @@ LLM_MODEL=deepseek-chat
 - 需安装 `writer-python/requirements.txt`（含 `openai`、`psycopg`、`tiktoken` 等）。
 - 调用 LLM 会写入 PostgreSQL 表 **`llm_usage_log`**（需本地 Postgres 可用）。
 - 主要接口：`POST /api/writer/test-agent`（详见 `15plan.md` Day 3）。
+
+---
+
+## Day 4 说明（题材推荐 Genre Decision）
+
+第一版 **Genre Decision**：静态题材卡 + 平台 profile + 规则 YAML，经 **Genre Scout → Trope Strategist → Market Fit Scorer** 三轮 **LLM Gateway** 调用（prompt 均在 `writer-python/prompts/*.md`），产出结构化 **Genre Decision Contract**；Java 写入 **`genre_decision_contracts`**；前端在项目详情页可填偏好并展示 3 个候选。
+
+### Day 4 数据文件（writer-python）
+
+- `data/trope_cards/`：`urban_tech_system.json`、`fantasy_leveling.json`、`romance_rebirth.json`
+- `data/platform_profiles/`：`fanqie.yaml`、`qidian.yaml`
+- `data/genre_rules/`：`default.yaml`
+
+### Day 4 接口
+
+- **Python**：`POST /api/writer/genre/recommend` — Body 与 Java 一致（camelCase）：`targetPlatform`、`genderChannel`、`preferredGenres`、`avoid`、`writingStrength`、`riskPreference`，可选 `projectId`（Java 会自动带上）。
+- **Java**：`POST /api/projects/{projectId}/genre/recommend` — 请求体同上；响应：`contractId` + `contract`（含 `selectedDirection`、`candidateRankings`（3 条）、`recommendedCoreHook`、`riskNotes`）。
+
+### Day 4 前置条件
+
+- PostgreSQL、**Writer**（8000）配置好 **`OPENAI_API_KEY`**（见 Day 3）。
+- **Java**（8080）的 `mythosforge.writer.base-url` 指向 Writer。
+- 题材推荐会写入 **`llm_usage_log`**（`agent_name`：`genre_scout`、`trope_strategist`、`market_fit_scorer`，以及可能的 `json_repair`）。
+
+### Day 4 排查（422 / 502）
+
+- **冒烟脚本**：[scripts/smoke-genre-recommend.ps1](scripts/smoke-genre-recommend.ps1) — A 段空 body 应对齐 Python `loc=["body"]`；B 直连 Writer；C 经 Java，502 时响应 JSON 中的 **`message`** 字段含 Writer 上游说明（需 `server.error.include-message: always`，见 `application.yml`）。
+- **日志**：Writer 对 `POST /api/writer/genre/recommend` 打印 **client / content-length / content-type**；Java 对 **`WriterEngineClient`**、`**RestClient**` 开 **DEBUG** 可见出站 JSON 预览与长度。

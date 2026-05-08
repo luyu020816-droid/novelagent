@@ -1,0 +1,11 @@
+platform_key: qidian
+display_name: 起点中文网
+notes:
+  - 付费订阅导向，世界观与长线伏笔空间更大。
+  - 设定密度可更高，但仍需卷纲节奏。
+audience_hints:
+  male_channel: 世界观展开、升级曲线与副本结构更重要。
+  female_channel: 可适当加深人设与世界细节（仍避免开篇信息过载）。
+serialization:
+  preferred_chapter_rhythm: medium
+  opening_pressure: medium

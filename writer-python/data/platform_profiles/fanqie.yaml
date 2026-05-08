@@ -1,0 +1,11 @@
+platform_key: fanqie
+display_name: 番茄小说
+notes:
+  - 免费阅读为主，强钩子开篇与高频反转。
+  - 章节偏短、标题党友好；节奏要快。
+audience_hints:
+  male_channel: 爽点直给、扮猪吃虎、升级或职场碾压。
+  female_channel: 情感拉扯清晰，反转不宜过度阴暗。
+serialization:
+  preferred_chapter_rhythm: fast
+  opening_pressure: high

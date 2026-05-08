@@ -1,0 +1,27 @@
+version: 1
+description: 第一版静态规则：指导模型产出候选与打分维度，不做真实热度爬虫。
+score_dimensions:
+  heat_score:
+    label: 题材热度（主观启发式）
+    range: [1, 10]
+  competition_score:
+    label: 同类竞争强度（越高越卷）
+    range: [1, 10]
+  payoff_density:
+    label: 爽点密度潜力
+    range: [1, 10]
+  serialization_score:
+    label: 连载友好度
+    range: [1, 10]
+  originality_space:
+    label: 差异化空间
+    range: [1, 10]
+token_cost_level:
+  allowed_values: [low, medium, high]
+constraints:
+  candidate_count: 3
+  risk_preference_map:
+    low: 优先稳妥题材，避免高强度争议设定。
+    medium: 平衡创新与风险。
+    high: 允许更高戏剧冲突与设定野心。
+avoid_keywords_hint: 用户 avoid 列表必须在 risk 说明中被回应。
