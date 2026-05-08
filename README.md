@@ -2,6 +2,10 @@
 
 本地优先长篇小说创作引擎 — 当前为 Day 1 最小可运行骨架。
 
+## README 约定
+
+按计划推进时：**每一天新增或未完成的能力**，都在本文件 **追加对应 Day 的小节**（不删前面已完成天的说明），便于对照 `15plan.md` 与本地环境。
+
 ## 前置条件
 
 - Docker Desktop（或兼容的 Docker）
@@ -117,3 +121,47 @@ Flyway **只在启动时**跑迁移；若库里已有 `flyway_schema_history` �
    ```
 
 5. **历史里已有 V2 但表被人删过**：Flyway 默认不会重跑。需由 DBA 处理（例如删除 `flyway_schema_history` 中对应失败/错误版本记录后 **谨慎** 再迁移），或在新库上重建；不要随意在生产库上删历史。
+
+---
+
+## Day 3 说明（Writer：LLM Gateway）
+
+Writer 使用 **OpenAI 兼容 HTTP API**（`openai` Python SDK）。不接 Ollama 时，可把 **DeepSeek** 等服务商填进下列环境变量。
+
+### API Key / Base URL / 模型填在哪
+
+仓库里**不会**自带 `.env`（避免把密钥提交进 Git）。请在 **`writer-python` 目录** 复制模板再填写：
+
+```bash
+cd writer-python
+# Windows:
+copy .env.example .env
+# macOS / Linux:
+# cp .env.example .env
+# 再编辑 .env，填入 OPENAI_API_KEY 等
+```
+
+`.env` 与 `uvicorn` 工作目录一致；`app/config.py` 通过 `pydantic-settings` 读取该文件。
+
+```env
+# DeepSeek（OpenAI 兼容）：密钥填在 OPENAI_API_KEY（变量名固定，供 SDK 使用）
+OPENAI_API_KEY=你的_deepseek_api_key
+
+# DeepSeek 官方兼容接口地址（以文档为准）
+OPENAI_BASE_URL=https://api.deepseek.com
+
+# 模型名以服务商控制台 / 文档为准（示例，请换成 DeepSeek V4 正式发布的 model id）
+LLM_MODEL=deepseek-chat
+```
+
+也可以在同一终端里 **导出环境变量**（不写 `.env`），效果相同。
+
+**填哪一个 `.env`？** Writer 只读 **`writer-python/.env`**（已固定路径，与你在哪个目录执行 `uvicorn` 无关）。仓库根目录的 `.env.example` 是给 **整个项目备忘** 用的，**不会**自动被 Writer 读取；除非你把变量做成 **系统 / 终端环境变量**。
+
+说明：`OPENAI_*` 只是 SDK 约定的名字；填的是 **DeepSeek 的 key**，不是必须 OpenAI 账号。若仍返回 `OPENAI_API_KEY is not set`，说明 **`writer-python/.env` 里没有这一行** 或 **键名写错**（必须是 `OPENAI_API_KEY=`）。`POST /api/writer/test-agent` 的请求体字段是 **`user_hint`**（可选），不是 `message`。
+
+### Day 3 相关依赖与接口（摘要）
+
+- 需安装 `writer-python/requirements.txt`（含 `openai`、`psycopg`、`tiktoken` 等）。
+- 调用 LLM 会写入 PostgreSQL 表 **`llm_usage_log`**（需本地 Postgres 可用）。
+- 主要接口：`POST /api/writer/test-agent`（详见 `15plan.md` Day 3）。

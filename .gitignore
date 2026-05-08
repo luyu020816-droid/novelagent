@@ -1,3 +1,6 @@
 .venv/
 node_modules/
 target/
+
+# Local secrets (writer-python reads writer-python/.env)
+.env
