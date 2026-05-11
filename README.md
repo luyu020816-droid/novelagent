@@ -1,208 +1,164 @@
-# MythosForge（Day 1）
+# MythosForge
 
-本地优先长篇小说创作引擎 — 当前为 Day 1 最小可运行骨架。
-
-## README 约定
-
-按计划推进时：**每一天新增或未完成的能力**，都在本文件 **追加对应 Day 的小节**（不删前面已完成天的说明），便于对照 `15plan.md` 与本地环境。
-
-联调踩坑与面试可用的复盘写在 **[问题.md](问题.md)**；多次失败后归纳条目可使用 Cursor 技能 **`incident-log`**（[.cursor/skills/incident-log/SKILL.md](.cursor/skills/incident-log/SKILL.md)）。
-
-Day 1–4 **讲师串讲稿**（架构分工、关键类、联调演示路径）：[docs/讲师串讲-Day1-4.md](docs/讲师串讲-Day1-4.md)。
-
-## 前置条件
-
-- Docker Desktop（或兼容的 Docker）
-- JDK 17+
-- Maven 3.9+
-- Python 3.11+（建议 venv）
-- Node.js 20+
-
-## 启动顺序
-
-### 1. 基础设施
-
-```bash
-docker compose up -d
-```
-
-确认 PostgreSQL / Redis / Qdrant / Neo4j 均为 running。
-
-### 2. Java API（端口 8080）
-
-```bash
-cd backend-java
-mvn spring-boot:run
-```
-
-### 3. Writer Python（端口 8000，Day 1 仅 health）
-
-```bash
-cd writer-python
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### 4. 前端（端口 5173）
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-浏览器打开 http://localhost:5173 — 列表与创建项目通过 Vite 代理访问 `/api/*` → Java。
-
-## Day 1 验收
-
-见下方「Day 1 完成报告」中的验收步骤。
+本地优先的 **AI 辅助长篇小说创作平台**：从题材决策与故事初始化，到章纲与单章 **LangGraph** 流水线生成、人工审核定稿、全书导出与用量统计，全流程可在自有环境跑通。数据按 **作品（Project）** 隔离，支持多部书并行。
 
 ---
 
-## Day 2 说明
+## 核心能力
 
-在 Day 1 可运行骨架之上，Day 2 补充：**PostgreSQL 基础表**、**Java 调用 Writer（FastAPI）**、**项目详情页与 Writer 连通性展示**。启动顺序仍与上文一致；更新后端代码后请重新执行 `mvn spring-boot:run`（需释放 8080 后再启动）。
+- **题材与故事初始化**：题材推荐 / 访谈 / 故事钩子等；阻塞或 **SSE 流式**；生成并持久化 `novel_seed`、`story_contract`、多章 `chapter_contracts`。
+- **章节写作**：**LangGraph** 多阶段编排（上下文策展、规划、Token 预算、成稿、审查、风格等）；**SSE 同步生成** 与 **RabbitMQ + Worker 异步排队** 双模式。
+- **上下文与记忆**：**Neo4j** 世界观图谱召回、**Qdrant** 向量检索历史正文片段；Tiktoken 预算与 **Priority** 裁剪，优先保留故事/章纲契约。
+- **质量与治理**：结构化 Critic、疲劳/套话扫描、`anti_ai` 重写模式；**作者意图 / 不可违背项 / 风格指纹** 注入 Story Canon；丛书 Skill（`writer-python/app/skills/library`）。
+- **产品与运维**：章节多版本（待审核 → 接受/退回）、已定稿全书 **Markdown 导出**、按章 **LLM 用量与 ROI**、**双书对照** 进度页、全书实体字符串替换等。
+- **编排层**：Java 负责 REST、持久化、SSE/RabbitMQ 桥接；Python **FastAPI** 负责 Agent 与 LangGraph；前端 **React + Vite** 通过代理访问 `/api`。
 
-### Day 2 数据库（Flyway）
+---
 
-- 已有：`projects`（V1）。
-- 新增（V2）：`genre_decision_contracts`、`novel_seed_contracts`、`story_contracts`、`chapter_contracts`、`generation_jobs`、`chapter_versions`、`chapter_commits`、`memory_summaries`、`llm_usage_log`。
+## 技术栈
 
-应用启动时会自动迁移；可用 `psql` 中 `\dt` 核对表是否存在。
+| 层级 | 技术 |
+|------|------|
+| 前端 | React、TypeScript、Vite、React Router；SSE 消费长流程 |
+| 后端 API | Java 17、Spring Boot、Spring Data JPA、**Flyway**、RestClient |
+| 数据库 / 中间件 | **PostgreSQL**（JSONB）、**Redis**、**RabbitMQ** |
+| AI 引擎 | Python **FastAPI**、**LangGraph**（`langgraph`）、OpenAI 兼容 **LLMGateway**（流式 + usage）、**tiktoken** |
+| 检索与图谱 | **Neo4j**、**Qdrant**（向量）、Embedding 可配置 |
+| 容器 | Docker Compose 拉起 Postgres / Redis / Qdrant / Neo4j / RabbitMQ |
 
-### Day 2 Writer（Python）
+---
 
-- `GET /api/writer/health` — 健康检查（纯文本 `ok`）。
-- `POST /api/writer/test` — 连通性测试（JSON，供 Java 探测）。
+## 仓库结构（摘要）
 
-### Day 2 Java API 补充
+```
+novel/
+├── backend-java/          # Spring Boot：项目、题材、故事、章节、评审、异步 Job、Writer 代理
+├── frontend/              # Vite 前端
+├── writer-python/         # FastAPI：Genre / Init-novel / Chapters LangGraph / Lore / Skills / Worker
+├── docker-compose.yml     # 本地依赖服务
+├── run_local.sh           # Linux/macOS：一键起 Docker + Java + Writer + Worker + 前端
+├── start.sh               # 备忘片段（见下文「启动」）
+├── docs/                  # SSE 协议说明、串讲稿等
+├── 15plan.md              # 迭代计划（历史天数说明）
+└── 问题.md                # 踩坑与复盘（可选）
+```
 
-- `GET /api/projects/{projectId}` — 单个项目。
-- `GET /api/projects/{projectId}/detail` — 项目信息 + 对 Writer 的 health / test 探测结果（`writerEngine`）。
+写作流水线与 Skill 说明：**[writer-python/app/skills/library/README.md](writer-python/app/skills/library/README.md)**。
 
-Writer 根地址配置：`backend-java/src/main/resources/application.yml` 中 `mythosforge.writer.base-url`（默认 `http://127.0.0.1:8000`）。
+---
 
-### Day 2 前端
+## 环境要求
 
-- 项目列表中点击项目名称进入 **项目详情**。
-- 详情页展示项目基本信息及 Writer 探测结果（health / test）；二者均成功时显示连接正常。
+- Docker Desktop（或兼容 Docker）
+- JDK 17+、Maven 3.9+
+- Python 3.11+（建议使用 `venv`）
+- Node.js 20+
 
-### Day 2 验收（简要）
+---
 
-1. 数据库中能看到 Day 2 新增的 9 张业务表（及 `flyway_schema_history` 版本 ≥ 2）。
-2. 同时启动 Writer（8000）与 Java（8080）后，`GET /api/projects/{id}/detail` 中 `writerEngine.health.ok` 与 `writerEngine.test.ok` 为 `true`。
-3. 浏览器打开 http://localhost:5173 ，进入某项目详情页，能看到项目字段与 Writer 状态。
+## 启动方式
 
-### Day 2：重启 Java 后表仍未生成（排查）
+### 方式 A：`run_local.sh`（Linux / macOS）
 
-Flyway **只在启动时**跑迁移；若库里已有 `flyway_schema_history` 且版本 ≥ 2，**不会**重复执行 V2。常见是「应用连上的库」和「你在客户端里看的库」不是同一个。
+在项目根目录：
 
-1. **先做一次干净构建再启动**（避免 `target/classes` 里仍是旧资源、未带上 `V2__….sql`）：
+```bash
+chmod +x run_local.sh
+./run_local.sh
+```
+
+会拉起 Compose 中的 **postgres、redis、qdrant、neo4j、rabbitmq**，并在后台启动 **Java :8080**、**Writer :8000**、**`worker.py`（章节队列消费者）**、**前端 :5173**。  
+需配置 **`writer-python/.env`**（见下文）及 Java 中与 Worker 一致的 **`MYTHOSFORGE_INTERNAL_TOKEN`**（脚本默认 `dev-internal-token`，须与 `application.yml` 一致）。
+
+### 方式 B：手动（Windows / 通用）
+
+1. **基础设施**
+
+   ```bash
+   docker compose up -d
+   ```
+
+   确认 Postgres、Redis、Qdrant、Neo4j、RabbitMQ 就绪（异步章节需 RabbitMQ；Worker 需单独进程）。
+
+2. **Java API — `http://localhost:8080`**
 
    ```bash
    cd backend-java
-   mvn clean spring-boot:run
+   mvn spring-boot:run
    ```
 
-2. **看启动日志**（应出现 Flyway 校验/迁移一行，例如 `Successfully validated 2 migrations` 或 `Migrating ... to version "2 - init generation tables"`）。若没有 Flyway 日志，检查是否改动了 `spring.flyway.enabled`。
-
-3. **确认 JDBC 与客户端一致**：`application.yml` 里默认库名为 **`mythosforge`**（`POSTGRES_DB` / URL 最后一段）。在 **同一个库** 里执行：
-
-   ```sql
-   SELECT version, success, script FROM flyway_schema_history ORDER BY installed_rank;
-   \dt
-   ```
-
-   - 若只有 `version = 1`，说明运行时 classpath 里**没有**读到 V2 脚本 → 回到步骤 1，并确认存在文件  
-     `backend-java/src/main/resources/db/migration/V2__init_generation_tables.sql`（注意 `V2` 与脚本名之间是 **两条下划线** `__`）。
-
-4. **Windows 上多个 PostgreSQL**：若本机还装过 Postgres，`localhost:5432` 可能连到 **本机服务** 而非 Docker。可用 Docker 直接进库核对（容器名按 `docker ps` 调整，示例为 `novel-postgres-1`）：
+3. **Writer — `http://localhost:8000`**
 
    ```bash
-   docker exec -it novel-postgres-1 psql -U mythosforge -d mythosforge -c "\dt"
+   cd writer-python
+   python -m venv .venv
+   # Windows: .\.venv\Scripts\activate
+   # Linux/macOS: source .venv/bin/activate
+   pip install -r requirements.txt
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-5. **历史里已有 V2 但表被人删过**：Flyway 默认不会重跑。需由 DBA 处理（例如删除 `flyway_schema_history` 中对应失败/错误版本记录后 **谨慎** 再迁移），或在新库上重建；不要随意在生产库上删历史。
+4. **异步章节 Worker（可选，与 RabbitMQ 配套）**
+
+   ```bash
+   cd writer-python
+   python worker.py
+   ```
+
+5. **前端 — `http://localhost:5173`**
+
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+浏览器打开前端地址；`/api` 由 Vite 代理到 Java。
 
 ---
 
-## Day 3 说明（Writer：LLM Gateway）
+## 配置要点
 
-Writer 使用 **OpenAI 兼容 HTTP API**（`openai` Python SDK）。不接 Ollama 时，可把 **DeepSeek** 等服务商填进下列环境变量。
+### Writer（`writer-python/.env`）
 
-### API Key / Base URL / 模型填在哪
-
-仓库里**不会**自带 `.env`（避免把密钥提交进 Git）。请在 **`writer-python` 目录** 复制模板再填写：
+从模板复制后填写（**不要**把真实密钥提交到 Git）：
 
 ```bash
 cd writer-python
-# Windows:
-copy .env.example .env
-# macOS / Linux:
-# cp .env.example .env
-# 再编辑 .env，填入 OPENAI_API_KEY 等
+cp .env.example .env   # Windows 可用 copy .env.example .env
 ```
 
-`.env` 与 `uvicorn` 工作目录一致；`app/config.py` 通过 `pydantic-settings` 读取该文件。
+至少需要配置 OpenAI 兼容的 **`OPENAI_API_KEY`**，以及按需设置 **`OPENAI_BASE_URL`**、`LLM_MODEL`、Embedding / Qdrant / Neo4j 等（见 `.env.example` 注释）。使用 DeepSeek 等兼容网关时，通常将密钥写入 **`OPENAI_API_KEY`**，将 **`OPENAI_BASE_URL`** 设为服务商文档地址，**`LLM_MODEL`** 设为控制台中的模型名。
 
-```env
-# DeepSeek（OpenAI 兼容）：密钥填在 OPENAI_API_KEY（变量名固定，供 SDK 使用）
-OPENAI_API_KEY=你的_deepseek_api_key
+### Java 调用 Writer
 
-# DeepSeek 官方兼容接口地址（以文档为准）
-OPENAI_BASE_URL=https://api.deepseek.com
+`backend-java/src/main/resources/application.yml` 中 **`mythosforge.writer.base-url`**（默认 `http://127.0.0.1:8000`）。
 
-# 模型名以服务商控制台 / 文档为准（DeepSeek V4 Flash）
-LLM_MODEL=deepseek-v4-flash
-```
+### RabbitMQ
 
-也可以在同一终端里 **导出环境变量**（不写 `.env`），效果相同。
-
-**填哪一个 `.env`？** Writer 只读 **`writer-python/.env`**（已固定路径，与你在哪个目录执行 `uvicorn` 无关）。仓库根目录的 `.env.example` 是给 **整个项目备忘** 用的，**不会**自动被 Writer 读取；除非你把变量做成 **系统 / 终端环境变量**。
-
-说明：`OPENAI_*` 只是 SDK 约定的名字；填的是 **DeepSeek 的 key**，不是必须 OpenAI 账号。若仍返回 `OPENAI_API_KEY is not set`，说明 **`writer-python/.env` 里没有这一行** 或 **键名写错**（必须是 `OPENAI_API_KEY=`）。`POST /api/writer/test-agent` 的请求体字段是 **`user_hint`**（可选），不是 `message`。
-
-### Day 3 相关依赖与接口（摘要）
-
-- 需安装 `writer-python/requirements.txt`（含 `openai`、`psycopg`、`tiktoken` 等）。
-- 调用 LLM 会写入 PostgreSQL 表 **`llm_usage_log`**（需本地 Postgres 可用）。
-- 主要接口：`POST /api/writer/test-agent`（详见 `15plan.md` Day 3）。
+Compose 默认用户/密码：`mythosforge` / `mythosforge`；管理界面 **http://localhost:15672**。
 
 ---
 
-## Day 4 说明（题材推荐 Genre Decision）
+## 常用文档
 
-第一版 **Genre Decision**：静态题材卡 + 平台 profile + 规则 YAML，经 **Genre Scout → Trope Strategist → Market Fit Scorer** 三轮 **LLM Gateway** 调用（prompt 均在 `writer-python/prompts/*.md`），产出结构化 **Genre Decision Contract**；Java 写入 **`genre_decision_contracts`**；前端在项目详情页可填偏好并展示 3 个候选。
-
-### Day 4 数据文件（writer-python）
-
-- `data/trope_cards/`：`urban_tech_system.json`、`fantasy_leveling.json`、`romance_rebirth.json`
-- `data/platform_profiles/`：`fanqie.yaml`、`qidian.yaml`
-- `data/genre_rules/`：`default.yaml`
-
-### Day 4 接口
-
-- **Python**：`POST /api/writer/genre/recommend` — Body 与 Java 一致（camelCase）：`targetPlatform`、`genderChannel`、`preferredGenres`、`avoid`、`writingStrength`、`riskPreference`，可选 `projectId`（Java 会自动带上）。
-- **Java**：`POST /api/projects/{projectId}/genre/recommend` — 请求体同上；响应：`contractId` + `contract`（含 `selectedDirection`、`candidateRankings`（3 条）、`recommendedCoreHook`、`riskNotes`）。
-
-### Day 4 前置条件
-
-- PostgreSQL、**Writer**（8000）配置好 **`OPENAI_API_KEY`**（见 Day 3）。
-- **Java**（8080）的 `mythosforge.writer.base-url` 指向 Writer。
-- 题材推荐会写入 **`llm_usage_log`**（`agent_name`：`genre_scout`、`trope_strategist`、`market_fit_scorer`，以及可能的 `json_repair`）。
-
-### Day 4 排查（422 / 502）
-
-- **冒烟脚本**：[scripts/smoke-genre-recommend.ps1](scripts/smoke-genre-recommend.ps1) — A 段空 body 应对齐 Python `loc=["body"]`；B 直连 Writer；C 经 Java，502 时响应 JSON 中的 **`message`** 字段含 Writer 上游说明（需 `server.error.include-message: always`，见 `application.yml`）。
-- **日志**：Writer 对 `POST /api/writer/genre/recommend` 打印 **client / content-length / content-type**；Java 对 **`WriterEngineClient`**、`**RestClient**` 开 **DEBUG** 可见出站 JSON 预览与长度。
+| 文档 | 说明 |
+|------|------|
+| [docs/sse-event-protocol.md](docs/sse-event-protocol.md) | SSE 事件、`artifact` / `persisted` 约定 |
+| [docs/讲师串讲-Day1-4.md](docs/讲师串讲-Day1-4.md) | 早期架构与联调串讲 |
+| [15plan.md](15plan.md) | 按天迭代计划与接口演进记录 |
+| [问题.md](问题.md) | 踩坑与复盘（若存在） |
+| [writer-python/app/skills/library/README.md](writer-python/app/skills/library/README.md) | 丛书 Skill 与 `fatigue/` 配置说明 |
 
 ---
 
-## SSE 流式（题材 / 初始化小说）
+## 数据库迁移（Flyway）
 
-- **协议说明**（事件类型、`artifact` / `persisted`、与 LangGraph 迁移提示）：[docs/sse-event-protocol.md](docs/sse-event-protocol.md)。
-- **Python**：所有经 `LLMGateway` 的调用在 OpenAI SDK 层使用 **`stream=True`**；长流程另提供 SSE 路由，例如 `POST /api/writer/genre/recommend/stream`、`POST /api/writer/init-novel/stream`。
-- **Java**：`WriterSseProxyService` 将 Writer SSE **透传**至浏览器，并在 `artifact` 后 **落库**、追加 **`persisted`** 事件（如 `POST /api/projects/{projectId}/genre/recommend/stream`、`POST .../story/init/stream`）。
-- **前端**：项目详情「题材推荐」与「初始化小说」默认使用 **SSE**，界面展示 `llm_delta` 增量日志。
+迁移脚本位于 `backend-java/src/main/resources/db/migration/`。**仅在应用启动时执行**；若表缺失但历史版本已高，请核对是否连错库、或需 `mvn clean spring-boot:run` 与 Docker 内实际库名 **`mythosforge`** 一致。详细排查思路见旧版 README 中 Flyway 小节已并入日常运维经验；也可检索仓库内 `flyway_schema_history`。
+
+---
+
+## 说明
+
+- 迭代过程中的 **Day N** 细节与历史接口说明仍以 **[15plan.md](15plan.md)** 为准。
+- 多次联调失败后的条目归纳可使用 Cursor 技能 **incident-log**（[.cursor/skills/incident-log/SKILL.md](.cursor/skills/incident-log/SKILL.md)），并同步到 **问题.md**。
