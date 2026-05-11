@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 from openai import OpenAI
 
 from app.config import Settings, get_settings
+from app.graph.chapter_usage_accumulator import chapter_usage_accumulator_append
 from app.services.token_estimator import estimate_messages_tokens
 from app.services.usage_log import insert_llm_usage_log
 
@@ -25,7 +27,11 @@ class GatewayResult:
 
 
 class LLMGateway:
-    """Single entry for chat completions; logs each call to llm_usage_log."""
+    """Single entry for chat completions; logs each call to llm_usage_log.
+
+    所有调用在 OpenAI SDK 层均使用 stream=True 消费增量，再拼接完整文本；
+    可选 on_delta 将增量透出给 SSE 等多智能体编排。
+    """
 
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
@@ -48,8 +54,9 @@ class LLMGateway:
         job_id: str | None = None,
         project_id: str | None = None,
         chapter_no: int | None = None,
+        on_delta: Callable[[str], None] | None = None,
     ) -> GatewayResult:
-        use_model = model or self._settings.llm_model
+        use_model = model or self._settings.resolve_llm_model(node_name)
         est_in = estimate_messages_tokens(messages, use_model)
         est_out_guess = max(256, min(4096, est_in // 4 + 128))
         est_total = est_in + est_out_guess
@@ -66,41 +73,78 @@ class LLMGateway:
                 "model": use_model,
                 "messages": messages,
                 "temperature": temperature,
+                "stream": True,
             }
             if response_format_json:
                 kwargs_cc["response_format"] = {"type": "json_object"}
-            resp = self._client.chat.completions.create(**kwargs_cc)
-            text = (resp.choices[0].message.content or "").strip()
-            if resp.usage:
-                act_in = resp.usage.prompt_tokens
-                act_out = resp.usage.completion_tokens
-                act_tot = resp.usage.total_tokens
+            kwargs_cc["stream_options"] = {"include_usage": True}
+
+            try:
+                stream = self._client.chat.completions.create(**kwargs_cc)
+            except Exception:
+                kwargs_cc.pop("stream_options", None)
+                stream = self._client.chat.completions.create(**kwargs_cc)
+            parts: list[str] = []
+            for chunk in stream:
+                if getattr(chunk, "usage", None):
+                    u = chunk.usage
+                    act_in = getattr(u, "prompt_tokens", None)
+                    act_out = getattr(u, "completion_tokens", None)
+                    act_tot = getattr(u, "total_tokens", None)
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta
+                if delta is None:
+                    continue
+                piece = delta.content or ""
+                if piece:
+                    parts.append(piece)
+                    if on_delta is not None:
+                        on_delta(piece)
+            text = "".join(parts).strip()
+            if act_out is None and text:
+                act_out = max(1, len(text) // 4)
+            if act_tot is None and act_in is not None and act_out is not None:
+                act_tot = act_in + act_out
         except Exception as e:
             status = "error"
             err_msg = str(e)
             text = ""
         latency_ms = int((time.perf_counter() - t0) * 1000)
 
-        insert_llm_usage_log(
-            {
-                "job_id": job_id,
-                "project_id": project_id,
-                "chapter_no": chapter_no,
-                "agent_name": agent_name,
-                "node_name": node_name,
-                "provider": "openai",
-                "model": use_model,
-                "estimated_input_tokens": est_in,
-                "estimated_output_tokens": est_out_guess,
-                "estimated_total_tokens": est_total,
-                "actual_input_tokens": act_in,
-                "actual_output_tokens": act_out,
-                "actual_total_tokens": act_tot,
-                "latency_ms": latency_ms,
-                "status": status,
-                "error_message": err_msg,
-            }
-        )
+        log_row = {
+            "job_id": job_id,
+            "project_id": project_id,
+            "chapter_no": chapter_no,
+            "agent_name": agent_name,
+            "node_name": node_name,
+            "provider": "openai",
+            "model": use_model,
+            "estimated_input_tokens": est_in,
+            "estimated_output_tokens": est_out_guess,
+            "estimated_total_tokens": est_total,
+            "actual_input_tokens": act_in,
+            "actual_output_tokens": act_out,
+            "actual_total_tokens": act_tot,
+            "latency_ms": latency_ms,
+            "status": status,
+            "error_message": err_msg,
+        }
+        insert_llm_usage_log(log_row)
+
+        if status == "ok" and agent_name == "chapter_gen":
+            chapter_usage_accumulator_append(
+                {
+                    "node_name": node_name,
+                    "model": use_model,
+                    "estimated_input_tokens": est_in,
+                    "estimated_output_tokens": est_out_guess,
+                    "estimated_total_tokens": est_total,
+                    "actual_input_tokens": act_in,
+                    "actual_output_tokens": act_out,
+                    "actual_total_tokens": act_tot,
+                }
+            )
 
         if status == "error":
             raise RuntimeError(err_msg or "LLM call failed")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
@@ -24,6 +25,7 @@ def validate_or_repair(
     repair_context: str,
     job_id: str | None = None,
     project_id: str | None = None,
+    on_llm_delta: Callable[[str], None] | None = None,
 ) -> tuple[T, bool]:
     """
     Validate JSON against Pydantic model; on failure run exactly one repair via LLMGateway.
@@ -53,6 +55,7 @@ def validate_or_repair(
         node_name="json_repair",
         job_id=job_id,
         project_id=project_id,
+        on_delta=on_llm_delta,
     )
     try:
         data2: Any = json.loads(result.text.strip())

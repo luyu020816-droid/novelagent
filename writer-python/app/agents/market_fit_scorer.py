@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 
 from app.schemas.genre import GenreRecommendRequest, ScoutOutput, StrategistOutput
 from app.services.genre_data import load_genre_context_bundle
+from app.services.genre_story_hook import format_story_hook_block
 from app.services.llm_gateway import LLMGateway
 from app.services.prompt_registry import load_prompt
 
@@ -13,6 +15,7 @@ def run(
     scout: ScoutOutput,
     strategist: StrategistOutput,
     gateway: LLMGateway,
+    on_llm_delta: Callable[[str], None] | None = None,
 ) -> str:
     """返回模型原始 JSON 文本，供上层 Pydantic + repair 校验。"""
     system = load_prompt("market_fit_scorer_v1.md")
@@ -25,6 +28,7 @@ def run(
         f"Scout JSON:\n{scout_json}\n\n"
         f"Strategist JSON:\n{strat_json}\n\n"
         f"=== genre_rules 与题材上下文 ===\n{bundle}"
+        f"{format_story_hook_block(req)}"
     )
     gr = gateway.chat_completion(
         messages=[
@@ -36,5 +40,6 @@ def run(
         agent_name="market_fit_scorer",
         node_name="main",
         project_id=req.project_id,
+        on_delta=on_llm_delta,
     )
     return gr.text

@@ -35,6 +35,10 @@ class GenreRecommendRequest(BaseModel):
     avoid: list[str] = Field(default_factory=list)
     writing_strength: list[str] = Field(default_factory=list)
     risk_preference: str = Field(default="medium", description="low | medium | high")
+    story_hook: str | None = Field(
+        default=None,
+        description="可选：作者一两句故事线/创意；若填写则各 Agent 须与之对齐",
+    )
     project_id: str | None = Field(default=None, description="可选，用于 llm_usage_log")
 
 

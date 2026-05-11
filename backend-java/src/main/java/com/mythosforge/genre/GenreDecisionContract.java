@@ -11,6 +11,9 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 
+/**
+ * JPA 实体 → {@code genre_decision_contracts}。JSON 列用 Hibernate {@link org.hibernate.annotations.JdbcTypeCode} 映射 PostgreSQL jsonb。
+ */
 @Entity
 @Table(name = "genre_decision_contracts")
 public class GenreDecisionContract {
@@ -36,6 +39,12 @@ public class GenreDecisionContract {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "raw_json", nullable = false, columnDefinition = "jsonb")
     private JsonNode rawJson;
+
+    @Column(name = "source", nullable = false)
+    private String source = "preference";
+
+    @Column(name = "story_hook_text")
+    private String storyHookText;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -93,6 +102,22 @@ public class GenreDecisionContract {
 
     public void setRawJson(JsonNode rawJson) {
         this.rawJson = rawJson;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
+
+    public String getStoryHookText() {
+        return storyHookText;
+    }
+
+    public void setStoryHookText(String storyHookText) {
+        this.storyHookText = storyHookText;
     }
 
     public Instant getCreatedAt() {

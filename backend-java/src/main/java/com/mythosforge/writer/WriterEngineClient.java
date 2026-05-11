@@ -17,12 +17,17 @@ import org.springframework.web.client.RestClientException;
 
 import java.nio.charset.StandardCharsets;
 
+/**
+ * 出站 HTTP 客户端（Spring {@link RestClient}）：探测 Writer、阻塞 POST 题材/采访/初始化等非 SSE 接口。
+ * init-novel 使用更长读超时单独 {@code RestClient}。
+ */
 @Component
 public class WriterEngineClient {
 
     private static final Logger log = LoggerFactory.getLogger(WriterEngineClient.class);
 
     private final RestClient client;
+    private final RestClient initNovelClient;
     private final ObjectMapper objectMapper;
     private final String writerBaseUrl;
 
@@ -35,6 +40,12 @@ public class WriterEngineClient {
         rf.setBufferRequestBody(true);
         rf.setConnectTimeout(10_000);
         this.client = RestClient.builder().baseUrl(baseUrl).requestFactory(rf).build();
+
+        SimpleClientHttpRequestFactory rfLong = new SimpleClientHttpRequestFactory();
+        rfLong.setBufferRequestBody(true);
+        rfLong.setConnectTimeout(10_000);
+        rfLong.setReadTimeout(600_000);
+        this.initNovelClient = RestClient.builder().baseUrl(baseUrl).requestFactory(rfLong).build();
         this.objectMapper = objectMapper;
     }
 
@@ -66,6 +77,30 @@ public class WriterEngineClient {
         return new WriterEngineStatusResponse(fetchHealth(), fetchTest());
     }
 
+    public JsonNode postInitNovel(JsonNode body) {
+        try {
+            String json = objectMapper.writeValueAsString(body);
+            String preview = json.length() > 600 ? json.substring(0, 600) + "..." : json;
+            byte[] payload = json.getBytes(StandardCharsets.UTF_8);
+            log.debug(
+                    "postInitNovel writerBaseUrl={} uri=/api/writer/init-novel bytes={} preview={}",
+                    writerBaseUrl,
+                    payload.length,
+                    preview
+            );
+            return initNovelClient.post()
+                    .uri("/api/writer/init-novel")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.CONNECTION, "close")
+                    .body(payload)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize init-novel request JSON", e);
+        }
+    }
+
     public JsonNode postGenreRecommend(JsonNode body) {
         try {
             String json = objectMapper.writeValueAsString(body);
@@ -87,6 +122,31 @@ public class WriterEngineClient {
                     .body(JsonNode.class);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize genre request JSON", e);
+        }
+    }
+
+    /**
+     * 路径 B：多轮互动采访（JSON 请求 / 响应）。
+     */
+    public JsonNode postGenreInterview(JsonNode body) {
+        try {
+            String json = objectMapper.writeValueAsString(body);
+            byte[] payload = json.getBytes(StandardCharsets.UTF_8);
+            log.debug(
+                    "postGenreInterview writerBaseUrl={} uri=/api/writer/genre/interview bytes={}",
+                    writerBaseUrl,
+                    payload.length
+            );
+            return client.post()
+                    .uri("/api/writer/genre/interview")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.CONNECTION, "close")
+                    .body(payload)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize genre interview JSON", e);
         }
     }
 }

@@ -1,0 +1,23 @@
+# MythosForge：题材无关默认疲劳词 / AI 腔提示（可叠加 Skill preset）
+version: 1
+profile_id: default
+banned_substrings:
+  - "不言而喻"
+  - "值得一提的是"
+  - "综上所述"
+  - "不难看出"
+  - "从某种意义上说"
+  - "总而言之"
+  - "tapestry of"
+  - "testament to"
+  - "delve into"
+  - "intricate dance"
+caution_substrings:
+  - "仿佛"
+  - "宛如"
+  - "恰似"
+  - "内心深处"
+  - "不由得"
+  - "嘴角勾起"
+  - "眼眸"
+  - "内心深处"

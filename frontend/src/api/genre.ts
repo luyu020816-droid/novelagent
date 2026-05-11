@@ -1,4 +1,5 @@
-import { apiJson } from "./client";
+import { apiJson, apiVoid } from "./client";
+import { postSseStream } from "./sse";
 
 export type GenreRecommendRequest = {
   targetPlatform: string;
@@ -75,6 +76,115 @@ export function postGenreRecommend(
     {
       method: "POST",
       body: JSON.stringify(body),
+    }
+  );
+}
+
+/** SSE：Java 透传 Writer；`persisted` 事件含落库后的 contractId / contract。 */
+export function postGenreRecommendStream(
+  projectId: string,
+  body: GenreRecommendRequest,
+  onFrame: (eventName: string, payload: Record<string, unknown>) => void
+): Promise<void> {
+  return postSseStream(
+    `/api/projects/${encodeURIComponent(projectId)}/genre/recommend/stream`,
+    body,
+    (eventName, dataJson) => {
+      const payload = JSON.parse(dataJson) as Record<string, unknown>;
+      onFrame(eventName, payload);
+    }
+  );
+}
+
+export type GenreStoryHookStreamRequest = {
+  storyHook: string;
+  targetPlatform?: string;
+  genderChannel?: string;
+  riskPreference?: string;
+};
+
+/** SSE：同一 Writer 流水线，请求体带 storyHook（偏好在后端填空数组）。 */
+export function postGenreRecommendFromStoryStream(
+  projectId: string,
+  body: GenreStoryHookStreamRequest,
+  onFrame: (eventName: string, payload: Record<string, unknown>) => void
+): Promise<void> {
+  return postSseStream(
+    `/api/projects/${encodeURIComponent(projectId)}/genre/recommend/from-story/stream`,
+    body,
+    (eventName, dataJson) => {
+      const payload = JSON.parse(dataJson) as Record<string, unknown>;
+      onFrame(eventName, payload);
+    }
+  );
+}
+
+export function putGenreSelection(projectId: string, genreContractId: string): Promise<void> {
+  return apiVoid(`/api/projects/${encodeURIComponent(projectId)}/genre/selected-contract`, {
+    method: "PUT",
+    body: JSON.stringify({ genreContractId }),
+  });
+}
+
+/** 单条题材方案详情（含完整 raw_json）。 */
+export type GenreContractDetail = {
+  id: string;
+  projectId: string;
+  createdAt: string;
+  source: string;
+  storyHookText: string | null;
+  rawJson: Record<string, unknown>;
+};
+
+export function getGenreContract(projectId: string, contractId: string): Promise<GenreContractDetail> {
+  return apiJson<GenreContractDetail>(
+    `/api/projects/${encodeURIComponent(projectId)}/genre/${encodeURIComponent(contractId)}`
+  );
+}
+
+export function putGenreContract(
+  projectId: string,
+  contractId: string,
+  body: { rawJson?: Record<string, unknown>; selectedDirection?: Record<string, unknown> }
+): Promise<GenreContractDetail> {
+  return apiJson<GenreContractDetail>(
+    `/api/projects/${encodeURIComponent(projectId)}/genre/${encodeURIComponent(contractId)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }
+  );
+}
+
+export function deleteGenreContract(projectId: string, contractId: string): Promise<void> {
+  return apiVoid(`/api/projects/${encodeURIComponent(projectId)}/genre/${encodeURIComponent(contractId)}`, {
+    method: "DELETE",
+  });
+}
+
+export type GenreInterviewChatTurn = {
+  role: string;
+  content: string;
+};
+
+export type GenreInterviewResponse = {
+  status: string;
+  replyToUser: string;
+  finalSummary?: string | null;
+  coreSettings?: Record<string, unknown> | null;
+  persistedNovelSeedContractId?: string | null;
+};
+
+/** 路径 B：多轮互动采访（非流式）。 */
+export function postGenreInterview(
+  projectId: string,
+  chatHistory: GenreInterviewChatTurn[]
+): Promise<GenreInterviewResponse> {
+  return apiJson<GenreInterviewResponse>(
+    `/api/projects/${encodeURIComponent(projectId)}/genre/interview`,
+    {
+      method: "POST",
+      body: JSON.stringify({ chatHistory }),
     }
   );
 }

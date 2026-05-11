@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
 
+/** 路径 A：偏好表单 → 转 JSON 调用 Writer 题材流水线（阻塞或非 SSE）。 */
 public record GenreRecommendRequest(
         @NotBlank String targetPlatform,
         @NotBlank String genderChannel,

@@ -9,6 +9,9 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 
+/**
+ * JPA 实体 → 表 {@code projects}。当前选定题材/初始化快照 ID 存在此表，供工作区与初始化解析。
+ */
 @Entity
 @Table(name = "projects")
 public class Project {
@@ -30,6 +33,16 @@ public class Project {
 
     @Column(nullable = false)
     private String status = "created";
+
+    @Column(name = "selected_genre_contract_id")
+    private String selectedGenreContractId;
+
+    @Column(name = "selected_story_contract_id")
+    private String selectedStoryContractId;
+
+    /** 丛书/同人预设（如 hp_fan），章节生成与初始化时传给 Writer。 */
+    @Column(name = "fan_series_preset")
+    private String fanSeriesPreset;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -97,6 +110,30 @@ public class Project {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getSelectedGenreContractId() {
+        return selectedGenreContractId;
+    }
+
+    public void setSelectedGenreContractId(String selectedGenreContractId) {
+        this.selectedGenreContractId = selectedGenreContractId;
+    }
+
+    public String getSelectedStoryContractId() {
+        return selectedStoryContractId;
+    }
+
+    public void setSelectedStoryContractId(String selectedStoryContractId) {
+        this.selectedStoryContractId = selectedStoryContractId;
+    }
+
+    public String getFanSeriesPreset() {
+        return fanSeriesPreset;
+    }
+
+    public void setFanSeriesPreset(String fanSeriesPreset) {
+        this.fanSeriesPreset = fanSeriesPreset;
     }
 
     public Instant getCreatedAt() {

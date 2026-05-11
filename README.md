@@ -6,6 +6,10 @@
 
 按计划推进时：**每一天新增或未完成的能力**，都在本文件 **追加对应 Day 的小节**（不删前面已完成天的说明），便于对照 `15plan.md` 与本地环境。
 
+联调踩坑与面试可用的复盘写在 **[问题.md](问题.md)**；多次失败后归纳条目可使用 Cursor 技能 **`incident-log`**（[.cursor/skills/incident-log/SKILL.md](.cursor/skills/incident-log/SKILL.md)）。
+
+Day 1–4 **讲师串讲稿**（架构分工、关键类、联调演示路径）：[docs/讲师串讲-Day1-4.md](docs/讲师串讲-Day1-4.md)。
+
 ## 前置条件
 
 - Docker Desktop（或兼容的 Docker）
@@ -150,8 +154,8 @@ OPENAI_API_KEY=你的_deepseek_api_key
 # DeepSeek 官方兼容接口地址（以文档为准）
 OPENAI_BASE_URL=https://api.deepseek.com
 
-# 模型名以服务商控制台 / 文档为准（示例，请换成 DeepSeek V4 正式发布的 model id）
-LLM_MODEL=deepseek-chat
+# 模型名以服务商控制台 / 文档为准（DeepSeek V4 Flash）
+LLM_MODEL=deepseek-v4-flash
 ```
 
 也可以在同一终端里 **导出环境变量**（不写 `.env`），效果相同。
@@ -193,3 +197,12 @@ LLM_MODEL=deepseek-chat
 
 - **冒烟脚本**：[scripts/smoke-genre-recommend.ps1](scripts/smoke-genre-recommend.ps1) — A 段空 body 应对齐 Python `loc=["body"]`；B 直连 Writer；C 经 Java，502 时响应 JSON 中的 **`message`** 字段含 Writer 上游说明（需 `server.error.include-message: always`，见 `application.yml`）。
 - **日志**：Writer 对 `POST /api/writer/genre/recommend` 打印 **client / content-length / content-type**；Java 对 **`WriterEngineClient`**、`**RestClient**` 开 **DEBUG** 可见出站 JSON 预览与长度。
+
+---
+
+## SSE 流式（题材 / 初始化小说）
+
+- **协议说明**（事件类型、`artifact` / `persisted`、与 LangGraph 迁移提示）：[docs/sse-event-protocol.md](docs/sse-event-protocol.md)。
+- **Python**：所有经 `LLMGateway` 的调用在 OpenAI SDK 层使用 **`stream=True`**；长流程另提供 SSE 路由，例如 `POST /api/writer/genre/recommend/stream`、`POST /api/writer/init-novel/stream`。
+- **Java**：`WriterSseProxyService` 将 Writer SSE **透传**至浏览器，并在 `artifact` 后 **落库**、追加 **`persisted`** 事件（如 `POST /api/projects/{projectId}/genre/recommend/stream`、`POST .../story/init/stream`）。
+- **前端**：项目详情「题材推荐」与「初始化小说」默认使用 **SSE**，界面展示 `llm_delta` 增量日志。

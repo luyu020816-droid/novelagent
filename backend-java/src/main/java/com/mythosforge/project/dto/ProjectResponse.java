@@ -4,6 +4,7 @@ import com.mythosforge.project.Project;
 
 import java.time.Instant;
 
+/** 对外暴露的项目摘要（由 {@link com.mythosforge.project.Project} 映射，不含选定快照字段）。 */
 public record ProjectResponse(
         String id,
         String name,
@@ -11,6 +12,7 @@ public record ProjectResponse(
         int targetChapters,
         int currentChapter,
         String status,
+        String fanSeriesPreset,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -22,6 +24,7 @@ public record ProjectResponse(
                 p.getTargetChapters(),
                 p.getCurrentChapter(),
                 p.getStatus(),
+                p.getFanSeriesPreset(),
                 p.getCreatedAt(),
                 p.getUpdatedAt()
         );

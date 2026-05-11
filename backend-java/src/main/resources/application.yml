@@ -6,8 +6,20 @@ server:
 mythosforge:
   writer:
     base-url: http://127.0.0.1:8000
+  export:
+    root: ${MYTHOSFORGE_EXPORT_ROOT:exports}
+  internal:
+    api-token: ${MYTHOSFORGE_INTERNAL_TOKEN:dev-internal-token}
 
 spring:
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:mythosforge}
+    password: ${RABBITMQ_PASSWORD:mythosforge}
+    listener:
+      simple:
+        auto-startup: false
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:mythosforge}
     username: ${POSTGRES_USER:mythosforge}

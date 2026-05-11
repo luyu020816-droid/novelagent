@@ -4,3 +4,7 @@ target/
 
 # Local secrets (writer-python reads writer-python/.env)
 .env
+
+# Python bytecode
+**/__pycache__/
+*.py[cod]
