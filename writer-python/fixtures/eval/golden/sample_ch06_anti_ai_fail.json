@@ -1,0 +1,23 @@
+{
+  "chapterNo": 6,
+  "label": "反AI套话样例",
+  "chapterText": "不禁感慨，心中涌起Complex情绪，仿佛整个世界都在此刻静止，他深知命运齿轮开始转动。",
+  "scenePlan": {
+    "beats": [
+      {"beat": "开场", "goal": "入戏"},
+      {"beat": "推进", "goal": "冲突"},
+      {"beat": "高潮", "goal": "对决"},
+      {"beat": "收束", "goal": "钩子"}
+    ]
+  },
+  "criticReport": {
+    "pass": false,
+    "dimensions": [
+      {"id": "anti_ai_prose", "ok": false, "note": "模板抒情过多"},
+      {"id": "beat_coverage", "ok": true, "note": ""},
+      {"id": "prose_quality", "ok": false, "note": ""},
+      {"id": "content_compliance", "ok": true, "note": ""},
+      {"id": "chapter_length", "ok": true, "note": ""}
+    ]
+  }
+}

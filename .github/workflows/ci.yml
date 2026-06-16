@@ -1,0 +1,64 @@
+name: novel-ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  java-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: novel/backend-java
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - run: mvn -q test
+
+  python-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: novel/writer-python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -p "test_*.py" -v
+      - run: python scripts/eval_critic_dimensions.py --dir fixtures/eval/golden --schema-only --min-dimension beat_coverage:0.5 --min-dimension canon_facts:0.5
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: novel/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: novel/frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  smoke-offline:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: novel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r writer-python/requirements.txt
+      - run: bash scripts/smoke_stack.sh

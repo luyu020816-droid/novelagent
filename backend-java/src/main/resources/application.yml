@@ -10,16 +10,14 @@ mythosforge:
     root: ${MYTHOSFORGE_EXPORT_ROOT:exports}
   internal:
     api-token: ${MYTHOSFORGE_INTERNAL_TOKEN:dev-internal-token}
+  generation:
+    # 同一章连续 FAILED 任务达到该值后拒绝新入队（0=关闭熔断）
+    consecutive-failed-jobs-to-block-enqueue: 5
+  narrative:
+    # 子文本「建议回收章」窗口半径（±N 章）；项目 narrative_accept_policy_json 可覆盖
+    subtext-window-radius: 1
 
 spring:
-  rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USER:mythosforge}
-    password: ${RABBITMQ_PASSWORD:mythosforge}
-    listener:
-      simple:
-        auto-startup: false
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:mythosforge}
     username: ${POSTGRES_USER:mythosforge}

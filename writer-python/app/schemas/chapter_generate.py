@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -24,6 +22,11 @@ class ChapterGenerateRequest(BaseModel):
     rewrite_mode: Literal["plot", "anti_ai"] = Field(default="plot", alias="rewriteMode")
     retry_count: int = Field(default=0, alias="retryCount", ge=0, le=10)
     fan_series_preset: str | None = Field(default=None, alias="fanSeriesPreset")
+    #: 作者已确认的本章动笔前摘要（Java 从 chapter_prewrite_plans 注入）
+    confirmed_chapter_plan_summary: str = Field(default="", alias="confirmedChapterPlanSummary")
+    #: Java PG 真源：本章任务单（活跃故事线、汇合、子文本窗口等）
+    chapter_obligations: dict[str, Any] | None = Field(default=None, alias="chapterObligations")
+    dag_definition: dict[str, Any] | None = Field(default=None, alias="dagDefinition")
 
     @model_validator(mode="before")
     @classmethod

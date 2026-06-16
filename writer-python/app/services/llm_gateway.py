@@ -10,6 +10,7 @@ from openai import OpenAI
 from app.config import Settings, get_settings
 from app.graph.chapter_usage_accumulator import chapter_usage_accumulator_append
 from app.services.token_estimator import estimate_messages_tokens
+from app.services.prompt_cpms import peek_prompt_version
 from app.services.usage_log import insert_llm_usage_log
 
 
@@ -112,6 +113,7 @@ class LLMGateway:
             text = ""
         latency_ms = int((time.perf_counter() - t0) * 1000)
 
+        pv = peek_prompt_version()
         log_row = {
             "job_id": job_id,
             "project_id": project_id,
@@ -120,6 +122,7 @@ class LLMGateway:
             "node_name": node_name,
             "provider": "openai",
             "model": use_model,
+            "prompt_version": pv,
             "estimated_input_tokens": est_in,
             "estimated_output_tokens": est_out_guess,
             "estimated_total_tokens": est_total,

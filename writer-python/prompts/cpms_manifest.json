@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "description": "CPMS-lite：节点 key → 提示词文件（相对 prompts/）",
+  "nodes": {
+    "planner": "planner_system_v1.md",
+    "ghostwriter": "ghostwriter_system_v1.md",
+    "ghostwriter_beat": "ghostwriter_beat_v1.md",
+    "critic": "critic_system_v1.md",
+    "initial_critic": "initial_critic_v1.md",
+    "anti_ai_protocol": "anti_ai_protocol_v1.md",
+    "chapter_summarize": "chapter_summarize_v1.md",
+    "aftermath_enrich": "aftermath_enrich_v1.md"
+  }
+}

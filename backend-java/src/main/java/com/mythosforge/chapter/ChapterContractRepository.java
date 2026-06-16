@@ -13,4 +13,6 @@ public interface ChapterContractRepository extends JpaRepository<ChapterContract
     Optional<ChapterContractEntity> findByStoryContractIdAndChapterNo(String storyContractId, int chapterNo);
 
     List<ChapterContractEntity> findByProjectId(String projectId);
+
+    void deleteByStoryContractId(String storyContractId);
 }

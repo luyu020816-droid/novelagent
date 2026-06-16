@@ -128,8 +128,34 @@ def upsert_chapter_chunks(project_id: str, chapter_no: int, text: str, settings:
     return len(points)
 
 
-def query_knowledge(project_id: str, query_text: str, limit: int = 3, settings: Settings | None = None) -> list[dict[str, Any]]:
-    """向量检索；强制 payload 过滤 project_id。"""
+def filter_vector_hits(
+    hits: list[dict[str, Any]],
+    min_score: float,
+) -> tuple[list[dict[str, Any]], int]:
+    """按 cosine 相似度过滤；返回 (保留列表, 被丢弃数量)。"""
+    if min_score <= 0:
+        return hits, 0
+    kept: list[dict[str, Any]] = []
+    dropped = 0
+    for h in hits:
+        score = h.get("score")
+        if score is None:
+            kept.append(h)
+            continue
+        if float(score) >= min_score:
+            kept.append(h)
+        else:
+            dropped += 1
+    return kept, dropped
+
+
+def query_knowledge(
+    project_id: str,
+    query_text: str,
+    limit: int | None = None,
+    settings: Settings | None = None,
+) -> list[dict[str, Any]]:
+    """向量检索；强制 payload 过滤 project_id；按 vector_min_score 丢弃低相关块。"""
     settings = settings or get_settings()
     out: list[dict[str, Any]] = []
     if not settings.vector_sync_enabled:
@@ -148,8 +174,9 @@ def query_knowledge(project_id: str, query_text: str, limit: int = 3, settings: 
         logger.warning("[VectorSearch] embed query failed: %s", e)
         return out
 
+    fetch_limit = limit if limit is not None else settings.vector_query_limit
     flt = Filter(must=[FieldCondition(key="project_id", match=MatchValue(value=project_id))])
-    resp = client.query_points(collection_name=coll, query=vec, query_filter=flt, limit=limit)
+    resp = client.query_points(collection_name=coll, query=vec, query_filter=flt, limit=fetch_limit)
     for h in resp.points or []:
         payload = h.payload or {}
         out.append(
@@ -160,4 +187,13 @@ def query_knowledge(project_id: str, query_text: str, limit: int = 3, settings: 
                 "score": float(h.score) if h.score is not None else None,
             }
         )
-    return out
+    filtered, dropped = filter_vector_hits(out, settings.vector_min_score)
+    if dropped:
+        logger.info(
+            "[VectorSearch] filtered %d/%d hits below min_score=%.3f project=%s",
+            dropped,
+            len(out),
+            settings.vector_min_score,
+            project_id,
+        )
+    return filtered

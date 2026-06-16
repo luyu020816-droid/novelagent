@@ -166,13 +166,10 @@ class InitNovelResponse(BaseModel):
 
     novel_seed: NovelSeed
     story_contract: StoryContract
-    first_volume_outline: str = Field(description="Day 6：第一卷大纲文字（Outline Architect）")
-    chapter_contracts: list[ChapterContract] = Field(
-        description="Day 6：前 20 章 Chapter Contract（经 Initial Critic）",
+    first_volume_outline: str = Field(
+        description="一段式剧情走向（约 500～1000 字），由 Outline Architect 产出",
     )
-
-    @model_validator(mode="after")
-    def day6_chapter_count(self) -> InitNovelResponse:
-        if len(self.chapter_contracts) != 20:
-            raise ValueError("chapter_contracts must contain exactly 20 items")
-        return self
+    chapter_contracts: list[ChapterContract] = Field(
+        default_factory=list,
+        description="init-novel 经 outline_chapter_draft + initial_critic 产出（默认 20 章）",
+    )

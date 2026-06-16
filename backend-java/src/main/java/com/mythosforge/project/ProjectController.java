@@ -1,6 +1,9 @@
 package com.mythosforge.project;
 
+import com.mythosforge.project.dto.AutopilotSettingsBody;
+import com.mythosforge.project.dto.EmergencyPauseBody;
 import com.mythosforge.project.dto.EntityReplaceRequest;
+import com.mythosforge.project.dto.NarrativeDomainPatchBody;
 import com.mythosforge.project.dto.ProjectCreateRequest;
 import com.mythosforge.project.dto.ProjectDetailResponse;
 import com.mythosforge.project.dto.FanSeriesPresetBody;
@@ -112,6 +115,38 @@ public class ProjectController {
     ) {
         projectService.getById(projectId);
         entityReplaceService.replaceEntities(projectId, body);
+    }
+
+    @PostMapping("/{projectId}/autopilot/settings")
+    public ProjectResponse setAutopilotSettings(
+            @PathVariable String projectId,
+            @RequestBody(required = false) AutopilotSettingsBody body
+    ) {
+        return projectService.updateAutopilotSettings(projectId, body);
+    }
+
+    @PostMapping("/{projectId}/autopilot/emergency-pause")
+    public ProjectResponse emergencyPauseAutopilot(
+            @PathVariable String projectId,
+            @RequestBody(required = false) EmergencyPauseBody body
+    ) {
+        String reason = body != null && body.reason() != null && !body.reason().isBlank()
+                ? body.reason()
+                : "emergency_pause";
+        return projectService.pauseAutopilot(projectId, reason);
+    }
+
+    @PostMapping("/{projectId}/autopilot/start-run")
+    public ProjectResponse startAutopilotRun(@PathVariable String projectId) {
+        return projectService.startAutopilotRun(projectId);
+    }
+
+    @PostMapping("/{projectId}/narrative-domain")
+    public ProjectResponse patchNarrativeDomain(
+            @PathVariable String projectId,
+            @Valid @RequestBody NarrativeDomainPatchBody body
+    ) {
+        return projectService.patchNarrativeDomain(projectId, body);
     }
 
     @DeleteMapping("/{projectId}")

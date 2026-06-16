@@ -30,6 +30,17 @@ export type Project = {
   status: string;
   /** 丛书预设，如 hp_fan；章节生成与初始化会传给 Writer */
   fanSeriesPreset?: string | null;
+  narrativePhase?: string | null;
+  narrativeCheckpointJson?: unknown;
+  autopilotMode?: string;
+  autoAcceptPolicy?: string;
+  maxAutoChaptersPerRun?: number;
+  autopilotChaptersThisRun?: number;
+  autopilotPaused?: boolean;
+  autopilotPauseReason?: string | null;
+  pauseOnVectorSyncFailed?: boolean;
+  narrativeDomainJson?: unknown;
+  autopilotLastActionJson?: unknown;
   createdAt: string;
   updatedAt: string;
 };
@@ -91,6 +102,110 @@ export function setFanSeriesPreset(projectId: string, fanSeriesPreset: string | 
           : fanSeriesPreset,
     }),
   });
+}
+
+export function updateAutopilotSettings(
+  projectId: string,
+  body: {
+    autopilotMode?: string;
+    autoAcceptPolicy?: string;
+    maxAutoChaptersPerRun?: number;
+    pauseOnVectorSyncFailed?: boolean;
+  }
+): Promise<Project> {
+  return apiJson<Project>(`/api/projects/${encodeURIComponent(projectId)}/autopilot/settings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function emergencyPauseAutopilot(projectId: string, reason?: string | null): Promise<Project> {
+  return apiJson<Project>(`/api/projects/${encodeURIComponent(projectId)}/autopilot/emergency-pause`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(reason != null && reason !== "" ? { reason } : {}),
+  });
+}
+
+export function startAutopilotRun(projectId: string): Promise<Project> {
+  return apiJson<Project>(`/api/projects/${encodeURIComponent(projectId)}/autopilot/start-run`, {
+    method: "POST",
+  });
+}
+
+/** PlotPilot 式叙事域快照（storylines / confluences 等），须为合法 JSON 对象。 */
+export function patchNarrativeDomain(projectId: string, narrativeDomainJson: unknown): Promise<Project> {
+  return apiJson<Project>(`/api/projects/${encodeURIComponent(projectId)}/narrative-domain`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ narrativeDomainJson }),
+  });
+}
+
+export type SubtextLedgerItem = {
+  id: string;
+  projectId: string;
+  chapterNo: number;
+  characterRef: string | null;
+  question: string;
+  status: string;
+  suggestedResolveChapter: number | null;
+  consumedAtChapter: number | null;
+  importance: string;
+  createdAt: string;
+};
+
+export type ChapterNarrativeMetricRow = {
+  id: string;
+  chapterNo: number;
+  tensionScore: number | null;
+  styleSimilarity: number | null;
+  commitId: string | null;
+  createdAt: string;
+  rawJson: unknown;
+};
+
+export function listSubtextLedger(projectId: string): Promise<SubtextLedgerItem[]> {
+  return apiJson<SubtextLedgerItem[]>(`/api/projects/${encodeURIComponent(projectId)}/subtext`);
+}
+
+export function createSubtextLedger(
+  projectId: string,
+  body: {
+    chapterNo: number;
+    question: string;
+    characterRef?: string | null;
+    suggestedResolveChapter?: number | null;
+    importance?: string | null;
+  }
+): Promise<SubtextLedgerItem> {
+  return apiJson<SubtextLedgerItem>(`/api/projects/${encodeURIComponent(projectId)}/subtext`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function consumeSubtextLedger(
+  projectId: string,
+  entryId: string,
+  consumedAtChapter: number
+): Promise<SubtextLedgerItem> {
+  return apiJson<SubtextLedgerItem>(
+    `/api/projects/${encodeURIComponent(projectId)}/subtext/${encodeURIComponent(entryId)}/consume`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ consumedAtChapter }),
+    }
+  );
+}
+
+export function listChapterNarrativeMetrics(projectId: string): Promise<ChapterNarrativeMetricRow[]> {
+  return apiJson<ChapterNarrativeMetricRow[]>(
+    `/api/projects/${encodeURIComponent(projectId)}/narrative-metrics`
+  );
 }
 
 export async function deleteProject(projectId: string): Promise<void> {

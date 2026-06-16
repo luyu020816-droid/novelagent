@@ -1,19 +1,24 @@
 package com.mythosforge.chapter;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.mythosforge.chapter.dto.GenerationJobProgressRequest;
 import com.mythosforge.chapter.dto.GenerationJobQueuedResponse;
 import com.mythosforge.chapter.dto.GenerationJobStatusResponse;
+import com.mythosforge.chapter.events.GenerationJobSucceededEvent;
+import com.mythosforge.writer.WriterEngineClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,26 +29,48 @@ public class GenerationJobService {
 
     private final GenerationJobRepository generationJobRepository;
     private final ChapterGenerationService chapterGenerationService;
-    private final RabbitTemplate rabbitTemplate;
-    private final ObjectMapper objectMapper;
+    private final ChapterPrewritePlanService chapterPrewritePlanService;
+    private final WriterEngineClient writerEngineClient;
+    private final TaskExecutor applicationTaskExecutor;
     private final TransactionTemplate transactionTemplate;
+    private final ApplicationEventPublisher eventPublisher;
+    private final int consecutiveFailedJobsToBlockEnqueue;
 
     public GenerationJobService(
             GenerationJobRepository generationJobRepository,
             ChapterGenerationService chapterGenerationService,
-            RabbitTemplate rabbitTemplate,
-            ObjectMapper objectMapper,
-            TransactionTemplate transactionTemplate
+            ChapterPrewritePlanService chapterPrewritePlanService,
+            WriterEngineClient writerEngineClient,
+            @Qualifier("applicationTaskExecutor") TaskExecutor applicationTaskExecutor,
+            TransactionTemplate transactionTemplate,
+            ApplicationEventPublisher eventPublisher,
+            @Value("${mythosforge.generation.consecutive-failed-jobs-to-block-enqueue:5}") int consecutiveFailedJobsToBlockEnqueue
     ) {
         this.generationJobRepository = generationJobRepository;
         this.chapterGenerationService = chapterGenerationService;
-        this.rabbitTemplate = rabbitTemplate;
-        this.objectMapper = objectMapper;
+        this.chapterPrewritePlanService = chapterPrewritePlanService;
+        this.writerEngineClient = writerEngineClient;
+        this.applicationTaskExecutor = applicationTaskExecutor;
         this.transactionTemplate = transactionTemplate;
+        this.eventPublisher = eventPublisher;
+        this.consecutiveFailedJobsToBlockEnqueue = consecutiveFailedJobsToBlockEnqueue;
     }
 
     public GenerationJobQueuedResponse enqueue(String projectId, int chapterNo, ChapterGenerateBody body) {
         chapterGenerationService.requireProjectStoryAndChapter(projectId, chapterNo);
+        chapterPrewritePlanService.requireConfirmedPlanForGeneration(projectId, chapterNo);
+        if (consecutiveFailedJobsToBlockEnqueue > 0) {
+            int fails = countConsecutiveFailuresFromNewest(projectId, chapterNo);
+            if (fails >= consecutiveFailedJobsToBlockEnqueue) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "该章节已连续失败 "
+                                + fails
+                                + " 次生成任务；请检查 Writer 日志或章纲后再试。"
+                                + "（可在 application.yml 调整 mythosforge.generation.consecutive-failed-jobs-to-block-enqueue，设为 0 关闭熔断）"
+                );
+            }
+        }
         JsonNode payload = chapterGenerationService.buildWriterPayload(projectId, chapterNo, body);
 
         String jobId = UUID.randomUUID().toString().replace("-", "");
@@ -51,33 +78,42 @@ public class GenerationJobService {
         row.setId(jobId);
         row.setProjectId(projectId);
         row.setChapterNo(chapterNo);
+        row.setJobType(GenerationJobTypes.CHAPTER_GENERATE);
         row.setStatus(GenerationJobStatuses.PENDING);
-        row.setCurrentStage("已排队");
+        row.setCurrentStage("已提交");
         row.setProgressPct(0);
         row.setPayloadJson(payload);
 
         transactionTemplate.executeWithoutResult(ts -> generationJobRepository.save(row));
 
-        ObjectNode msg = objectMapper.createObjectNode();
-        msg.put("jobId", jobId);
-        msg.put("projectId", projectId);
-        msg.put("chapterNo", chapterNo);
+        String finalJobId = jobId;
+        applicationTaskExecutor.execute(() -> runJobInBackground(finalJobId));
 
+        return new GenerationJobQueuedResponse(jobId, GenerationJobStatuses.PENDING, "任务已提交后台生成");
+    }
+
+    private void runJobInBackground(String jobId) {
         try {
-            rabbitTemplate.convertAndSend("", RabbitChapterGenerationConfig.CHAPTER_GENERATION_QUEUE, msg.toString());
+            applyProgress(jobId, new GenerationJobProgressRequest("Writer 生成中", 5, null));
+            JsonNode payload = getPayloadForWorker(jobId);
+            JsonNode result = writerEngineClient.postChapterGenerateComplete(payload, jobId);
+            applyComplete(jobId, result);
+        } catch (ResponseStatusException e) {
+            String reason = e.getReason() != null ? e.getReason() : e.getStatusCode().toString();
+            log.warn("job {} aborted: {}", jobId, reason);
+            try {
+                applyFail(jobId, reason);
+            } catch (Exception ex) {
+                log.warn("job {} applyFail after ResponseStatusException: {}", jobId, ex.getMessage());
+            }
+        } catch (RestClientException e) {
+            log.error("job {} writer HTTP failed", jobId, e);
+            applyFail(jobId, "Writer 不可用或超时: " + e.getMessage());
         } catch (Exception e) {
-            log.error("RabbitMQ publish failed jobId={}: {}", jobId, e.getMessage());
-            transactionTemplate.executeWithoutResult(ts -> {
-                GenerationJobEntity j = generationJobRepository.findById(jobId).orElseThrow();
-                j.setStatus(GenerationJobStatuses.FAILED);
-                j.setErrorMessage("RabbitMQ 不可用: " + e.getMessage());
-                j.setCurrentStage("排队失败");
-                generationJobRepository.save(j);
-            });
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "消息队列不可用，请确认 RabbitMQ 已启动");
+            log.error("job {} failed", jobId, e);
+            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            applyFail(jobId, msg);
         }
-
-        return new GenerationJobQueuedResponse(jobId, GenerationJobStatuses.PENDING, "任务已排队");
     }
 
     public JsonNode getPayloadForWorker(String jobId) {
@@ -144,6 +180,13 @@ public class GenerationJobService {
 
             generationJobRepository.save(job);
         });
+        GenerationJobEntity published = generationJobRepository.findById(jobId).orElse(null);
+        if (published != null
+                && GenerationJobStatuses.SUCCEEDED.equals(published.getStatus())
+                && published.getChapterVersionId() != null
+                && !published.getChapterVersionId().isBlank()) {
+            eventPublisher.publishEvent(new GenerationJobSucceededEvent(this, jobId));
+        }
     }
 
     public Optional<GenerationJobStatusResponse> latestJob(String projectId, int chapterNo) {
@@ -181,5 +224,19 @@ public class GenerationJobService {
             job.setErrorMessage(message != null && message.length() > 4000 ? message.substring(0, 4000) : message);
             generationJobRepository.save(job);
         });
+    }
+
+    private int countConsecutiveFailuresFromNewest(String projectId, int chapterNo) {
+        List<GenerationJobEntity> list =
+                generationJobRepository.findTop20ByProjectIdAndChapterNoOrderByCreatedAtDesc(projectId, chapterNo);
+        int c = 0;
+        for (GenerationJobEntity j : list) {
+            if (GenerationJobStatuses.FAILED.equals(j.getStatus())) {
+                c++;
+            } else {
+                break;
+            }
+        }
+        return c;
     }
 }

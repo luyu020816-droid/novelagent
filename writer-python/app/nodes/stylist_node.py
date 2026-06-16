@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from app.chapter_length_policy import CHAPTER_BODY_MAX_CHARS, CHAPTER_BODY_MIN_CHARS
 from app.nodes._sse import sse_llm_delta
 from app.services.llm_gateway import LLMGateway
 
@@ -30,7 +31,11 @@ def stylist_node(state: dict[str, Any], *, gateway: LLMGateway) -> dict[str, Any
     if not raw:
         return {"styled_text": ""}
 
-    sys = _load_stylist_system()
+    sys = (
+        _load_stylist_system()
+        + f"\n\n【篇幅】润色后正文字符数应仍大致落在 {CHAPTER_BODY_MIN_CHARS}～{CHAPTER_BODY_MAX_CHARS} 区间内"
+        "（与润色前同量级）；禁止为洗稿而大量删节导致明显低于下界。"
+    )
     user = "以下为须润色的章节正文（勿改剧情事实）：\n\n" + raw[:100000]
 
     try:

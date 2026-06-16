@@ -23,7 +23,7 @@ def run(
     sc = story_contract.model_dump_json(by_alias=True)
     user_msg = (
         f"genre_decision JSON:\n{gd}\n\nstory_contract JSON:\n{sc}\n\n"
-        f"请严格按系统指令只输出 JSON（含 first_volume_outline 与恰好 20 章 chapters）。"
+        f"请严格按系统指令只输出 JSON，且根对象仅含键 first_volume_outline（约 500～1000 字一段式剧情走向，不要 chapters）。"
     )
     gr = gateway.chat_completion(
         messages=[

@@ -1,6 +1,6 @@
 import { apiJson } from "./client";
 
-export type CopilotScene = "init_wizard" | "outline_edit" | "chapter_coach";
+export type CopilotScene = "init_wizard" | "outline_edit" | "chapter_coach" | "setup_coach";
 
 export type CopilotChatMessage = { role: "user" | "assistant"; content: string };
 

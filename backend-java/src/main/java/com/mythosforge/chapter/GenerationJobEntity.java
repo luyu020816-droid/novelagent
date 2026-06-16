@@ -25,6 +25,9 @@ public class GenerationJobEntity {
     @Column(name = "chapter_no", nullable = false)
     private int chapterNo;
 
+    @Column(name = "job_type", nullable = false, length = 32)
+    private String jobType;
+
     @Column(nullable = false)
     private String status;
 
@@ -114,6 +117,14 @@ public class GenerationJobEntity {
 
     public void setChapterNo(int chapterNo) {
         this.chapterNo = chapterNo;
+    }
+
+    public String getJobType() {
+        return jobType;
+    }
+
+    public void setJobType(String jobType) {
+        this.jobType = jobType;
     }
 
     public String getStatus() {

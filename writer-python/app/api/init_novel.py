@@ -6,8 +6,17 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
-from app.agents import character_designer, initial_critic, outline_architect, showrunner, worldbuilder
+from app.agents import (
+    character_designer,
+    initial_critic,
+    outline_architect,
+    outline_chapter_draft,
+    showrunner,
+    worldbuilder,
+)
+from app.schemas.chapter import OutlineArchitectOutput
 from app.config import get_settings
+from app.schemas.chapter import ChapterContract
 from app.schemas.story import (
     CharacterDesignerOutput,
     InitNovelRequest,
@@ -104,8 +113,24 @@ def init_novel(body: InitNovelRequest) -> InitNovelResponse:
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e)) from e
         outline_out = outline_architect.run(genre_decision, contract, gateway, pid)
-        chapter_list = initial_critic.run(genre_decision, contract, outline_out, gateway, pid)
-        chapter_list = sorted(chapter_list, key=lambda c: c.chapter_no)
+        draft_chapters = outline_chapter_draft.run(
+            genre_decision,
+            contract,
+            outline_out.first_volume_outline,
+            gateway,
+            pid,
+        )
+        outline_for_critic = OutlineArchitectOutput(
+            first_volume_outline=outline_out.first_volume_outline,
+            chapters=draft_chapters,
+        )
+        chapter_list = initial_critic.run(
+            genre_decision,
+            contract,
+            outline_for_critic,
+            gateway,
+            pid,
+        )
     except ValidationError as e:
         raise HTTPException(status_code=502, detail=f"Init novel validation failed: {e}") from e
     except RuntimeError as e:
@@ -191,16 +216,30 @@ def init_novel_stream(body: InitNovelRequest) -> StreamingResponse:
             )
             emit("node_end", {"node": "outline_architect", "ok": True})
 
+            emit("node_start", {"node": "outline_chapter_draft"})
+            draft_chapters = outline_chapter_draft.run(
+                genre_decision,
+                contract,
+                outline_out.first_volume_outline,
+                gateway,
+                pid,
+                on_llm_delta=lambda d: emit("llm_delta", {"node": "outline_chapter_draft", "text": d}),
+            )
+            emit("node_end", {"node": "outline_chapter_draft", "ok": True})
+
+            outline_for_critic = OutlineArchitectOutput(
+                first_volume_outline=outline_out.first_volume_outline,
+                chapters=draft_chapters,
+            )
             emit("node_start", {"node": "initial_critic"})
             chapter_list = initial_critic.run(
                 genre_decision,
                 contract,
-                outline_out,
+                outline_for_critic,
                 gateway,
                 pid,
                 on_llm_delta=lambda d: emit("llm_delta", {"node": "initial_critic", "text": d}),
             )
-            chapter_list = sorted(chapter_list, key=lambda c: c.chapter_no)
             emit("node_end", {"node": "initial_critic", "ok": True})
 
             bundle = InitNovelResponse(

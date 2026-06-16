@@ -24,6 +24,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -63,26 +64,42 @@ public class GenreService {
         projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
-        for (GenreInterviewChatTurn t : req.chatHistory()) {
-            String r = t.role().trim().toLowerCase();
-            if (!r.equals("user") && !r.equals("assistant") && !r.equals("system")) {
+        List<GenreInterviewChatTurn> turns = req.chatHistory();
+        boolean skillMode = req.writerSkillId() != null && !req.writerSkillId().isBlank();
+        if (turns == null || turns.isEmpty()) {
+            if (!skillMode) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "chatHistory.role must be user, assistant, or system"
+                        "chatHistory must not be empty unless writerSkillId is set"
                 );
+            }
+        } else {
+            for (GenreInterviewChatTurn t : turns) {
+                String r = t.role().trim().toLowerCase();
+                if (!r.equals("user") && !r.equals("assistant") && !r.equals("system")) {
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "chatHistory.role must be user, assistant, or system"
+                    );
+                }
             }
         }
 
         ObjectNode body = objectMapper.createObjectNode();
         ArrayNode hist = objectMapper.createArrayNode();
-        for (GenreInterviewChatTurn t : req.chatHistory()) {
-            ObjectNode turn = objectMapper.createObjectNode();
-            turn.put("role", t.role().trim());
-            turn.put("content", t.content());
-            hist.add(turn);
+        if (turns != null) {
+            for (GenreInterviewChatTurn t : turns) {
+                ObjectNode turn = objectMapper.createObjectNode();
+                turn.put("role", t.role().trim());
+                turn.put("content", t.content());
+                hist.add(turn);
+            }
         }
         body.set("chatHistory", hist);
         body.put("projectId", projectId);
+        if (skillMode) {
+            body.put("writerSkillId", req.writerSkillId().trim());
+        }
 
         JsonNode resp;
         try {
@@ -362,13 +379,21 @@ public class GenreService {
         body.putArray("preferredGenres");
         body.putArray("avoid");
         body.putArray("writingStrength");
+        if (Boolean.TRUE.equals(req.uniqueDirection())) {
+            body.put("uniqueDirection", true);
+        }
 
         try {
             String json = objectMapper.writeValueAsString(body);
             writerSseProxyService.proxySsePost("/api/writer/genre/recommend/stream", json, emitter, (kind, data) -> {
                 if ("GenreDecisionContract".equals(kind)) {
                     try {
-                        GenreRecommendResponse saved = persistGenreContract(projectId, data, "story_hook", hook);
+                        GenreRecommendResponse saved = persistGenreContract(
+                                projectId,
+                                data,
+                                Boolean.TRUE.equals(req.uniqueDirection()) ? "skill_unique" : "story_hook",
+                                hook
+                        );
                         maybeAutoSelectGenre(projectId, saved.contractId());
                         ObjectNode p = objectMapper.createObjectNode();
                         p.put("contractId", saved.contractId());

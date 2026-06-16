@@ -29,8 +29,9 @@ public class ChapterReviewController {
         chapterReviewService.rejectVersion(versionId);
     }
 
+    /** 删除章节版本（待审核 / 已退回 / 已定稿）；已定稿会同步删 commit 与导出文件。 */
     @DeleteMapping("/{versionId}")
     public void delete(@PathVariable String versionId) {
-        chapterReviewService.deletePendingVersion(versionId);
+        chapterReviewService.deleteVersion(versionId);
     }
 }

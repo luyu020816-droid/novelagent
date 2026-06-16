@@ -5,12 +5,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 
+from app.api import audit as audit_routes
 from app.api import chapters as chapters_routes
 from app.api import knowledge as knowledge_routes
 from app.api import lore as lore_routes
 from app.api import genre as genre_routes
 from app.api import init_novel as init_novel_routes
 from app.api import copilot as copilot_routes
+from app.api import dag as dag_routes
+from app.api import setup as setup_routes
 from app.api import writer_skills as writer_skills_routes
 from app.api import test_agent as test_agent_routes
 from app.api import writer_tools as writer_tools_routes
@@ -24,7 +27,10 @@ app.include_router(genre_routes.router)
 app.include_router(init_novel_routes.router)
 app.include_router(writer_skills_routes.router)
 app.include_router(copilot_routes.router)
+app.include_router(setup_routes.router)
 app.include_router(chapters_routes.router)
+app.include_router(dag_routes.router)
+app.include_router(audit_routes.router)
 app.include_router(knowledge_routes.router)
 app.include_router(lore_routes.router)
 app.include_router(writer_tools_routes.router)

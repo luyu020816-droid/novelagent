@@ -1,0 +1,21 @@
+{
+  "chapterNo": 2,
+  "chapterText": "示例：仅写日常闲聊，未覆盖规划节拍。",
+  "scenePlan": {
+    "beats": [
+      {"beat": "汇合", "goal": "A线B线交汇"},
+      {"beat": "冲突", "goal": "正面争执"},
+      {"beat": "抉择", "goal": "主角选边"},
+      {"beat": "钩子", "goal": "章末反转"}
+    ]
+  },
+  "criticReport": {
+    "pass": false,
+    "dimensions": [
+      {"id": "beat_coverage", "ok": false, "note": "汇合与冲突未写"},
+      {"id": "outline_adherence", "ok": true, "note": ""},
+      {"id": "content_compliance", "ok": true, "note": ""},
+      {"id": "chapter_length", "ok": true, "note": ""}
+    ]
+  }
+}

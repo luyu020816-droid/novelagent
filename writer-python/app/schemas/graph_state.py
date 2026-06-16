@@ -33,6 +33,8 @@ class ChapterGraphState(TypedDict, total=False):
     retry_count: int
     user_rewrite_notes: str
     rewrite_mode: str
+    confirmed_chapter_plan_summary: str
+    chapter_obligations: dict[str, Any] | None
 
 
 class ChapterGenerationState(BaseModel):
@@ -77,3 +79,11 @@ class ChapterGenerationState(BaseModel):
     retry_count: int = Field(default=0, description="Critic 失败后已触发重写次数（不含首轮）")
     user_rewrite_notes: str = Field(default="", description="用户打回时的补充意见（首轮写入 Ghostwriter）")
     rewrite_mode: str = Field(default="plot", description="plot | anti_ai")
+    confirmed_chapter_plan_summary: str = Field(
+        default="",
+        description="作者已确认的本章动笔前摘要（由 Curator 注入 context_pack）",
+    )
+    chapter_obligations: dict[str, Any] | None = Field(
+        default=None,
+        description="Java PG 真源「本章任务单」；Curator 合并入 context_pack.narrative_obligations",
+    )

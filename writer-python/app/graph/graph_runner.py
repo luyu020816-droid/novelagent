@@ -6,6 +6,8 @@ import asyncio
 from typing import Any, Callable
 
 from app.graph.chapter_graph import CHAPTER_NODE_NAMES, build_chapter_graph
+from app.dag.compiler import compile_dag_to_langgraph, validate_dag
+from app.dag.models import DAGDefinition
 from app.graph.chapter_usage_accumulator import (
     chapter_usage_accumulator_build_summary,
     chapter_usage_accumulator_reset,
@@ -33,6 +35,8 @@ _MERGE_KEYS = frozenset(
         "retry_count",
         "user_rewrite_notes",
         "rewrite_mode",
+        "confirmed_chapter_plan_summary",
+        "chapter_obligations",
     }
 )
 
@@ -48,9 +52,17 @@ def _resolve_graph_node_name(raw: str) -> str | None:
     return None
 
 
-async def _async_run_chapter_graph(initial: dict[str, Any], emit: Emit) -> dict[str, Any]:
+async def run_chapter_graph_async(initial: dict[str, Any], emit: Emit) -> dict[str, Any]:
     gateway = LLMGateway()
-    graph = build_chapter_graph(gateway)
+    dag_raw = initial.get("dag_definition") or initial.get("dagDefinition")
+    if isinstance(dag_raw, dict) and dag_raw.get("nodes"):
+        dag = DAGDefinition.model_validate(dag_raw)
+        errs = validate_dag(dag)
+        if errs:
+            raise ValueError("dagDefinition 无效: " + "; ".join(errs))
+        graph = compile_dag_to_langgraph(dag, gateway=gateway)
+    else:
+        graph = build_chapter_graph(gateway)
     compiled = graph.compile()
     acc: dict[str, Any] = dict(initial)
 
@@ -107,4 +119,4 @@ async def _async_run_chapter_graph(initial: dict[str, Any], emit: Emit) -> dict[
 
 def run_chapter_graph(initial: dict[str, Any], emit: Emit) -> dict[str, Any]:
     """同步入口（SSE worker 线程内调用）。内部用 asyncio 跑 `astream_events`。"""
-    return asyncio.run(_async_run_chapter_graph(initial, emit))
+    return asyncio.run(run_chapter_graph_async(initial, emit))

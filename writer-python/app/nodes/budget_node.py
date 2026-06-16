@@ -29,6 +29,30 @@ def budget_node(state: dict[str, Any]) -> dict[str, Any]:
 
     trimmed, status = trim_pack_items(items, budget)
     new_pack = items_to_context_pack(trimmed)
+    # 兜底：若条目未纳入 pack_items，从 Curator 原包保留叙事侧车字段
+    orig = state.get("context_pack")
+    if isinstance(orig, dict):
+        for key in (
+            "narrative_obligations",
+            "narrative_prompt_lines",
+            "story_phase_rules",
+            "previously_on",
+            "continuity_brief",
+            "story_anchor",
+            "scars_and_motivations",
+            "debt_due",
+            "causal_chains",
+            "active_entity_memory",
+            "narrative_graph_recall",
+            "memory_engine",
+            "fact_lock",
+            "completed_beats_lock",
+            "revealed_clues",
+            "anti_ai_protocol",
+            "beat_sheet_hints",
+        ):
+            if key not in new_pack and orig.get(key) is not None:
+                new_pack[key] = orig[key]
     pid = state.get("project_id")
     ch = state.get("chapter_no")
     if pid is not None:

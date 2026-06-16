@@ -55,6 +55,19 @@ public class ChapterCommitEntity {
     @Column(name = "summary")
     private JsonNode summary;
 
+    /** 定稿后 Qdrant 向量同步：PENDING / OK / FAILED / SKIPPED。 */
+    @Column(name = "vector_sync_status", length = 20)
+    private String vectorSyncStatus;
+
+    @Column(name = "vector_sync_error", columnDefinition = "text")
+    private String vectorSyncError;
+
+    @Column(name = "vector_sync_at")
+    private Instant vectorSyncAt;
+
+    @Column(name = "vector_sync_attempts", nullable = false)
+    private int vectorSyncAttempts;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -159,6 +172,38 @@ public class ChapterCommitEntity {
 
     public void setSummary(JsonNode summary) {
         this.summary = summary;
+    }
+
+    public String getVectorSyncStatus() {
+        return vectorSyncStatus;
+    }
+
+    public void setVectorSyncStatus(String vectorSyncStatus) {
+        this.vectorSyncStatus = vectorSyncStatus;
+    }
+
+    public String getVectorSyncError() {
+        return vectorSyncError;
+    }
+
+    public void setVectorSyncError(String vectorSyncError) {
+        this.vectorSyncError = vectorSyncError;
+    }
+
+    public Instant getVectorSyncAt() {
+        return vectorSyncAt;
+    }
+
+    public void setVectorSyncAt(Instant vectorSyncAt) {
+        this.vectorSyncAt = vectorSyncAt;
+    }
+
+    public int getVectorSyncAttempts() {
+        return vectorSyncAttempts;
+    }
+
+    public void setVectorSyncAttempts(int vectorSyncAttempts) {
+        this.vectorSyncAttempts = vectorSyncAttempts;
     }
 
     public Instant getCreatedAt() {

@@ -1,0 +1,12 @@
+{
+  "chapterNo": 3,
+  "chapterText": "短样例。",
+  "scenePlan": {"beats": [{"beat": "a", "goal": "1"}, {"beat": "b", "goal": "2"}, {"beat": "c", "goal": "3"}, {"beat": "d", "goal": "4"}]},
+  "critic_report": {
+    "pass": true,
+    "dimensions": [
+      {"id": "anti_ai_prose", "ok": true, "note": ""},
+      {"id": "narrative_obligations", "ok": true, "note": ""}
+    ]
+  }
+}

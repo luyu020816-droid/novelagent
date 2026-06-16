@@ -1,6 +1,7 @@
 .venv/
 node_modules/
 target/
+backend-java/exports/
 
 # Local secrets (writer-python reads writer-python/.env)
 .env

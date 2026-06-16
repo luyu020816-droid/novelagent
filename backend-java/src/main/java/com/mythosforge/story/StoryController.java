@@ -2,6 +2,7 @@ package com.mythosforge.story;
 
 import com.mythosforge.project.ProjectService;
 import com.mythosforge.story.dto.SelectStoryBundleRequest;
+import com.mythosforge.story.dto.StoryGovernanceAppendIntentRequest;
 import com.mythosforge.story.dto.StoryGovernanceUpdateRequest;
 import com.mythosforge.story.dto.StoryInitOptionsBody;
 import com.mythosforge.story.dto.StoryInitResponse;
@@ -9,14 +10,17 @@ import com.mythosforge.story.dto.StoryOutlineUpdateRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -97,5 +101,25 @@ public class StoryController {
                 body != null ? body.nonNegotiables() : null;
         String styleGuideMd = body != null ? body.styleGuideMd() : null;
         storyService.updateSelectedGovernance(projectId, intent, nn, styleGuideMd);
+    }
+
+    /** 在作者意图末尾追加一行（服务端自动加「【全局】」前缀）。 */
+    @PostMapping("/selected-bundle/governance/append-intent")
+    public void appendGovernanceIntentLine(
+            @PathVariable String projectId,
+            @RequestBody(required = false) StoryGovernanceAppendIntentRequest body
+    ) {
+        String line = body != null ? body.line() : "";
+        storyService.appendSelectedAuthorIntentLine(projectId, line);
+    }
+
+    /** 删除一条已保存的初始化快照；若为当前选中会先清空项目选中再删；级联删除该快照下的章纲与动笔前摘要行。 */
+    @DeleteMapping("/contracts/{storyContractId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteStoryContract(
+            @PathVariable String projectId,
+            @PathVariable String storyContractId
+    ) {
+        storyService.deleteStoryContract(projectId, storyContractId);
     }
 }

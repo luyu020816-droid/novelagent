@@ -41,10 +41,29 @@ class GenreInterviewRequest(BaseModel):
     model_config = _REQUEST_CFG
 
     chat_history: list[ChatTurn] = Field(
-        min_length=1,
-        description="完整对话历史，含本轮用户消息",
+        default_factory=list,
+        description="完整对话历史；可与 writer_skill_id 配合（空历史时由路由代为开场）",
     )
     project_id: str | None = Field(default=None, description="可选，写入 llm_usage_log")
+    writer_skill_id: str | None = Field(
+        default=None,
+        description="若提供则注入丛书 Skill 全文，模型据此追问确认细节",
+    )
+
+    @field_validator("writer_skill_id", mode="before")
+    @classmethod
+    def _strip_skill_id(cls, v: object) -> str | None:
+        if v is None:
+            return None
+        s = str(v).strip()
+        return s if s else None
+
+    @model_validator(mode="after")
+    def _history_or_skill(self) -> GenreInterviewRequest:
+        sid = (self.writer_skill_id or "").strip()
+        if not self.chat_history and not sid:
+            raise ValueError("chatHistory 不能为空，除非提供 writerSkillId（将自动插入开场白）")
+        return self
 
 
 class InterviewerResponse(BaseModel):

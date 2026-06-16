@@ -15,6 +15,7 @@ def insert_llm_usage_log(row: dict[str, Any]) -> None:
         "node_name",
         "provider",
         "model",
+        "prompt_version",
         "estimated_input_tokens",
         "estimated_output_tokens",
         "estimated_total_tokens",
@@ -31,5 +32,15 @@ def insert_llm_usage_log(row: dict[str, Any]) -> None:
     sql = f"INSERT INTO llm_usage_log ({columns_sql}) VALUES ({placeholders})"
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, values)
+            try:
+                cur.execute(sql, values)
+            except Exception as e:
+                if "prompt_version" in str(e).lower() and values.get("prompt_version") is not None:
+                    values.pop("prompt_version", None)
+                    cols_fallback = [c for c in cols if c != "prompt_version"]
+                    ph2 = ", ".join(f"%({k})s" for k in cols_fallback)
+                    sql2 = f"INSERT INTO llm_usage_log ({', '.join(cols_fallback)}) VALUES ({ph2})"
+                    cur.execute(sql2, {k: values.get(k) for k in cols_fallback})
+                else:
+                    raise
         conn.commit()

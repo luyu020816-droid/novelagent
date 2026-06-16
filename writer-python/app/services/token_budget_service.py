@@ -23,8 +23,40 @@ PROTECTED_CATEGORIES: frozenset[str] = frozenset(
         "fan_series_digest",
         "forbidden_moves",
         "human_instruction",
+        "chapter_plan_confirmed",
+        # PG 叙事任务单：Budget 后必须保留，否则 Ghostwriter/Critic 丢失汇合/子文本约束
+        "narrative_obligations",
+        "narrative_prompt_lines",
+        "story_phase_rules",
+        "narrative_summary",
+        "previously_on",  # tier 1，与 memory_engine_constants.MEMORY_SLOT_TIER 对齐
+        "continuity_brief",
+        "story_anchor",
+        "scars_and_motivations",
+        "debt_due",
+        "causal_chains",
+        "active_entity_memory",
+        "memory_engine",
+        "fact_lock",
+        "anti_ai_protocol",
     }
 )
+
+# PlotPilot T0–T3：可选条目裁剪时先丢 T3，再 T2（protected 见 PROTECTED_CATEGORIES）
+TOKEN_TIER_BY_CATEGORY: dict[str, int] = {
+    "meta_scope": 3,
+    "vector_context": 2,
+    "relationship_graph": 2,
+    "unresolved_events": 2,
+    "history_summary": 2,
+    "recent_summary": 2,
+    "memory_engine": 1,
+    "fact_lock": 1,
+    "completed_beats_lock": 1,
+    "revealed_clues": 1,
+    "previously_on": 1,
+    "anti_ai_protocol": 1,
+}
 
 _ENC: tiktoken.Encoding | None = None
 
@@ -69,9 +101,185 @@ def build_pack_items(
     unresolved_events: dict[str, Any] | None = None,
     user_rewrite_notes: str,
     fan_series_preset: str | None = None,
+    confirmed_chapter_plan: str | None = None,
+    narrative_obligations: dict[str, Any] | None = None,
+    narrative_prompt_lines: list[str] | None = None,
+    story_phase_rules: dict[str, Any] | None = None,
+    previously_on: str | None = None,
+    continuity_brief: str | None = None,
+    story_anchor: str | None = None,
+    scars_and_motivations: str | None = None,
+    debt_due: str | None = None,
+    causal_chains: str | None = None,
+    active_entity_memory: str | None = None,
+    memory_engine: str | None = None,
+    fact_lock: str | None = None,
+    anti_ai_protocol: str | None = None,
+    beat_sheet_hints: list[str] | None = None,
 ) -> list[ContextPackItem]:
     """将 curator 各类上下文拆成带优先级的条目（越远的历史摘要 priority 越低）。"""
     items: list[ContextPackItem] = []
+
+    co = narrative_obligations if isinstance(narrative_obligations, dict) else {}
+    summary = co.get("summaryLine") or co.get("summary_line")
+    if isinstance(summary, str) and summary.strip():
+        c = summary.strip()[:4000]
+        items.append(
+            ContextPackItem(
+                category="narrative_summary",
+                content=c,
+                priority=12,
+                estimated_tokens=estimate_item_tokens(c),
+            )
+        )
+    brief = (continuity_brief or co.get("continuityBrief") or co.get("continuity_brief") or "").strip()
+    if not brief and isinstance(co.get("continuityBrief"), str):
+        brief = str(co.get("continuityBrief")).strip()
+    if brief:
+        c = brief[:6000]
+        items.append(
+            ContextPackItem(
+                category="continuity_brief",
+                content=c,
+                priority=12,
+                estimated_tokens=estimate_item_tokens(c),
+            )
+        )
+    prev = (previously_on or "").strip()
+    if prev:
+        c = prev[:6000]
+        items.append(
+            ContextPackItem(
+                category="previously_on",
+                content=c,
+                priority=12,
+                estimated_tokens=estimate_item_tokens(c),
+            )
+        )
+    lines = narrative_prompt_lines
+    if lines is None:
+        raw_lines = co.get("narrativePromptLines") or co.get("narrative_prompt_lines")
+        lines = raw_lines if isinstance(raw_lines, list) else None
+    if isinstance(lines, list) and lines:
+        blob = "\n".join(str(x).strip() for x in lines if x and str(x).strip())[:12000]
+        if blob:
+            items.append(
+                ContextPackItem(
+                    category="narrative_prompt_lines",
+                    content=blob,
+                    priority=12,
+                    estimated_tokens=estimate_item_tokens(blob),
+                )
+            )
+    phase = story_phase_rules
+    if phase is None:
+        phase = co.get("phaseRules") or co.get("phase_rules")
+    if isinstance(phase, dict) and phase:
+        phase_json = json.dumps(phase, ensure_ascii=False)[:4000]
+        items.append(
+            ContextPackItem(
+                category="story_phase_rules",
+                content=phase_json,
+                priority=12,
+                estimated_tokens=estimate_item_tokens(phase_json),
+            )
+        )
+    if co:
+        co_json = json.dumps(co, ensure_ascii=False)[:16000]
+        items.append(
+            ContextPackItem(
+                category="narrative_obligations",
+                content=co_json,
+                priority=12,
+                estimated_tokens=estimate_item_tokens(co_json),
+            )
+        )
+
+    for category, text in (
+        ("story_anchor", story_anchor or co.get("storyAnchor") or co.get("story_anchor")),
+        (
+            "scars_and_motivations",
+            scars_and_motivations or co.get("scarsAndMotivations") or co.get("scars_and_motivations"),
+        ),
+        ("debt_due", debt_due or co.get("debtDueBlock") or co.get("debt_due")),
+        ("causal_chains", causal_chains or co.get("causalChainsBlock") or co.get("causal_chains")),
+    ):
+        if isinstance(text, str) and text.strip():
+            c = text.strip()[:8000]
+            items.append(
+                ContextPackItem(
+                    category=category,
+                    content=c,
+                    priority=12,
+                    estimated_tokens=estimate_item_tokens(c),
+                )
+            )
+    aem = active_entity_memory
+    if isinstance(aem, str) and aem.strip():
+        c = aem.strip()[:6000]
+        items.append(
+            ContextPackItem(
+                category="active_entity_memory",
+                content=c,
+                priority=11,
+                estimated_tokens=estimate_item_tokens(c),
+            )
+        )
+
+    mem = (memory_engine or "").strip()
+    if mem:
+        c = mem[:6000]
+        items.append(
+            ContextPackItem(
+                category="memory_engine",
+                content=c,
+                priority=12,
+                estimated_tokens=estimate_item_tokens(c),
+            )
+        )
+    fl = (fact_lock or "").strip()
+    if fl and not mem:
+        items.append(
+            ContextPackItem(
+                category="fact_lock",
+                content=fl[:4000],
+                priority=12,
+                estimated_tokens=estimate_item_tokens(fl[:4000]),
+            )
+        )
+    aip = (anti_ai_protocol or "").strip()
+    if aip:
+        c = aip[:4000]
+        items.append(
+            ContextPackItem(
+                category="anti_ai_protocol",
+                content=c,
+                priority=11,
+                estimated_tokens=estimate_item_tokens(c),
+            )
+        )
+    if isinstance(beat_sheet_hints, list) and beat_sheet_hints:
+        blob = "\n".join(f"- {x}" for x in beat_sheet_hints[:12])[:3000]
+        items.append(
+            ContextPackItem(
+                category="beat_sheet_hints",
+                content=blob,
+                priority=11,
+                estimated_tokens=estimate_item_tokens(blob),
+            )
+        )
+
+    plan = (confirmed_chapter_plan or "").strip()
+    if plan:
+        c = plan[:12000]
+        items.append(
+            ContextPackItem(
+                category="chapter_plan_confirmed",
+                content=c,
+                priority=12,
+                estimated_tokens=estimate_item_tokens(c),
+            )
+        )
 
     notes = (user_rewrite_notes or "").strip()
     if notes:
@@ -292,7 +500,10 @@ def trim_pack_items(
     indexed_opt = list(enumerate(optional))
     kept_indices: list[int] = []
     used = 0
-    for idx, x in sorted(indexed_opt, key=lambda t: (-t[1].priority, t[0])):
+    for idx, x in sorted(
+        indexed_opt,
+        key=lambda t: (-t[1].priority, TOKEN_TIER_BY_CATEGORY.get(t[1].category, 2), t[0]),
+    ):
         if used + x.estimated_tokens <= remaining:
             kept_indices.append(idx)
             used += x.estimated_tokens
@@ -360,6 +571,48 @@ def items_to_context_pack(items: list[ContextPackItem]) -> dict[str, Any]:
             pack["forbidden_moves"] = it.content
         elif it.category == "human_instruction":
             pack["human_instruction"] = it.content
+        elif it.category == "chapter_plan_confirmed":
+            pack["author_confirmed_chapter_plan"] = it.content
+        elif it.category == "narrative_obligations":
+            try:
+                pack["narrative_obligations"] = json.loads(it.content)
+            except json.JSONDecodeError:
+                pack["narrative_obligations"] = {}
+        elif it.category == "narrative_prompt_lines":
+            pack["narrative_prompt_lines"] = [
+                ln for ln in it.content.split("\n") if ln.strip()
+            ]
+        elif it.category == "story_phase_rules":
+            try:
+                pack["story_phase_rules"] = json.loads(it.content)
+            except json.JSONDecodeError:
+                pack["story_phase_rules"] = {}
+        elif it.category == "narrative_summary":
+            pack["narrative_obligations"] = pack.get("narrative_obligations") or {}
+            if isinstance(pack["narrative_obligations"], dict):
+                pack["narrative_obligations"]["summaryLine"] = it.content
+        elif it.category == "continuity_brief":
+            pack["continuity_brief"] = it.content
+        elif it.category == "previously_on":
+            pack["previously_on"] = it.content
+        elif it.category == "story_anchor":
+            pack["story_anchor"] = it.content
+        elif it.category == "scars_and_motivations":
+            pack["scars_and_motivations"] = it.content
+        elif it.category == "debt_due":
+            pack["debt_due"] = it.content
+        elif it.category == "causal_chains":
+            pack["causal_chains"] = it.content
+        elif it.category == "active_entity_memory":
+            pack["active_entity_memory"] = it.content
+        elif it.category == "memory_engine":
+            pack["memory_engine"] = it.content
+        elif it.category == "fact_lock":
+            pack["fact_lock"] = it.content
+        elif it.category == "anti_ai_protocol":
+            pack["anti_ai_protocol"] = it.content
+        elif it.category == "beat_sheet_hints":
+            pack["beat_sheet_hints"] = [ln[2:].strip() for ln in it.content.split("\n") if ln.startswith("- ")]
         elif it.category == "meta_scope":
             try:
                 meta = json.loads(it.content)

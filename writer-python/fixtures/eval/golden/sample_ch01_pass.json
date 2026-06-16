@@ -1,0 +1,22 @@
+{
+  "chapterNo": 1,
+  "chapterText": "示例正文：主角踏入山门，师父尚在，未违背 mustRetainFacts。",
+  "scenePlan": {
+    "beats": [
+      {"beat": "山门", "goal": "入场"},
+      {"beat": "师徒", "goal": "确认师父存活"},
+      {"beat": "伏笔", "goal": "埋设玉佩"},
+      {"beat": "收束", "goal": "章末悬念"}
+    ]
+  },
+  "criticReport": {
+    "pass": true,
+    "dimensions": [
+      {"id": "outline_adherence", "ok": true, "note": ""},
+      {"id": "beat_coverage", "ok": true, "note": "四节拍均有体现"},
+      {"id": "content_compliance", "ok": true, "note": ""},
+      {"id": "chapter_length", "ok": true, "note": ""},
+      {"id": "canon_facts", "ok": true, "note": ""}
+    ]
+  }
+}

@@ -1,0 +1,712 @@
+{
+  "id": "dag_default_chapter",
+  "name": "章节全流程（默认）",
+  "version": 1,
+  "description": "PlotPilot 风格可配置 DAG，运行时编译为 LangGraph",
+  "nodes": [
+    {
+      "id": "ctx_blueprint",
+      "type": "ctx_blueprint",
+      "label": "剧本基建",
+      "enabled": true,
+      "position": {
+        "x": 80.0,
+        "y": 80.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "ctx_memory",
+      "type": "ctx_memory",
+      "label": "记忆引擎",
+      "enabled": true,
+      "position": {
+        "x": 80.0,
+        "y": 180.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "ctx_foreshadow",
+      "type": "ctx_foreshadow",
+      "label": "伏笔注入",
+      "enabled": true,
+      "position": {
+        "x": 80.0,
+        "y": 280.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "ctx_voice",
+      "type": "ctx_voice",
+      "label": "角色声线",
+      "enabled": true,
+      "position": {
+        "x": 80.0,
+        "y": 380.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "ctx_debt",
+      "type": "ctx_debt",
+      "label": "叙事债务",
+      "enabled": true,
+      "position": {
+        "x": 80.0,
+        "y": 480.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "ctx_vector",
+      "type": "ctx_vector",
+      "label": "向量召回",
+      "enabled": true,
+      "position": {
+        "x": 80.0,
+        "y": 580.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "ctx_assemble",
+      "type": "ctx_assemble",
+      "label": "上下文组装",
+      "enabled": true,
+      "position": {
+        "x": 280.0,
+        "y": 330.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "anti_ai_behavior",
+      "type": "anti_ai_behavior",
+      "label": "行为协议",
+      "enabled": true,
+      "position": {
+        "x": 480.0,
+        "y": 120.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "planning_beat_sheet",
+      "type": "planning_beat_sheet",
+      "label": "节拍表",
+      "enabled": true,
+      "position": {
+        "x": 480.0,
+        "y": 240.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "planning_act",
+      "type": "planning_act",
+      "label": "场景规划",
+      "enabled": true,
+      "position": {
+        "x": 480.0,
+        "y": 360.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "planning_outline_partition",
+      "type": "planning_outline_partition",
+      "label": "章纲分区",
+      "enabled": true,
+      "position": {
+        "x": 480.0,
+        "y": 480.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "budget_token",
+      "type": "budget_token",
+      "label": "Token 预算",
+      "enabled": true,
+      "position": {
+        "x": 680.0,
+        "y": 300.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "exec_beat",
+      "type": "exec_beat",
+      "label": "节拍放大",
+      "enabled": true,
+      "position": {
+        "x": 880.0,
+        "y": 200.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "exec_writer",
+      "type": "exec_writer",
+      "label": "剧情引擎",
+      "enabled": true,
+      "position": {
+        "x": 880.0,
+        "y": 320.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "val_compliance",
+      "type": "val_compliance",
+      "label": "合规",
+      "enabled": true,
+      "position": {
+        "x": 1080.0,
+        "y": 120.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "val_length",
+      "type": "val_length",
+      "label": "篇幅",
+      "enabled": true,
+      "position": {
+        "x": 1080.0,
+        "y": 220.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "val_anti_ai",
+      "type": "val_anti_ai",
+      "label": "反 AI",
+      "enabled": true,
+      "position": {
+        "x": 1080.0,
+        "y": 320.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "val_tension",
+      "type": "val_tension",
+      "label": "张力",
+      "enabled": true,
+      "position": {
+        "x": 1080.0,
+        "y": 420.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "val_narrative",
+      "type": "val_narrative",
+      "label": "叙事审查",
+      "enabled": true,
+      "position": {
+        "x": 1280.0,
+        "y": 320.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "review_timeline",
+      "type": "review_timeline",
+      "label": "时间线审查",
+      "enabled": true,
+      "position": {
+        "x": 1380.0,
+        "y": 220.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "review_storyline",
+      "type": "review_storyline",
+      "label": "故事线审查",
+      "enabled": true,
+      "position": {
+        "x": 1380.0,
+        "y": 420.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "review_character",
+      "type": "review_character",
+      "label": "设定一致性",
+      "enabled": true,
+      "position": {
+        "x": 1480.0,
+        "y": 320.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "gw_circuit",
+      "type": "gw_circuit",
+      "label": "熔断网关",
+      "enabled": true,
+      "position": {
+        "x": 1680.0,
+        "y": 320.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "exec_polish",
+      "type": "exec_polish",
+      "label": "润色",
+      "enabled": true,
+      "position": {
+        "x": 1680.0,
+        "y": 220.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "anti_ai_finale",
+      "type": "anti_ai_finale",
+      "label": "终稿 Anti-AI",
+      "enabled": true,
+      "position": {
+        "x": 1680.0,
+        "y": 420.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    },
+    {
+      "id": "gw_retry",
+      "type": "gw_retry",
+      "label": "重写",
+      "enabled": true,
+      "position": {
+        "x": 1280.0,
+        "y": 520.0
+      },
+      "config": {
+        "prompt_template": null,
+        "system_prompt": null,
+        "thresholds": {},
+        "max_retries": 1,
+        "state_read_keys": [],
+        "state_write_keys": [],
+        "description": ""
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_01",
+      "source": "ctx_blueprint",
+      "target": "ctx_memory",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_02",
+      "source": "ctx_memory",
+      "target": "ctx_foreshadow",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_03",
+      "source": "ctx_foreshadow",
+      "target": "ctx_voice",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_04",
+      "source": "ctx_voice",
+      "target": "ctx_debt",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_05",
+      "source": "ctx_debt",
+      "target": "ctx_vector",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_06",
+      "source": "ctx_vector",
+      "target": "ctx_assemble",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_07",
+      "source": "ctx_assemble",
+      "target": "anti_ai_behavior",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_08",
+      "source": "anti_ai_behavior",
+      "target": "planning_beat_sheet",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_09",
+      "source": "planning_beat_sheet",
+      "target": "planning_act",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_10",
+      "source": "planning_act",
+      "target": "planning_outline_partition",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_11",
+      "source": "planning_outline_partition",
+      "target": "budget_token",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_12",
+      "source": "budget_token",
+      "target": "exec_beat",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_13",
+      "source": "exec_beat",
+      "target": "exec_writer",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_14",
+      "source": "exec_writer",
+      "target": "val_compliance",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_15",
+      "source": "val_compliance",
+      "target": "val_length",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_16",
+      "source": "val_length",
+      "target": "val_anti_ai",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_17",
+      "source": "val_anti_ai",
+      "target": "val_tension",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_18",
+      "source": "val_tension",
+      "target": "val_narrative",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_19",
+      "source": "val_narrative",
+      "target": "review_timeline",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_19a",
+      "source": "review_timeline",
+      "target": "review_storyline",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_19b",
+      "source": "review_storyline",
+      "target": "review_character",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_19c",
+      "source": "review_character",
+      "target": "gw_circuit",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_20",
+      "source": "gw_circuit",
+      "target": "exec_polish",
+      "source_port": "",
+      "target_port": "",
+      "condition": "on_accept"
+    },
+    {
+      "id": "edge_21",
+      "source": "gw_circuit",
+      "target": "gw_retry",
+      "source_port": "",
+      "target_port": "",
+      "condition": "on_reject"
+    },
+    {
+      "id": "edge_22",
+      "source": "exec_polish",
+      "target": "anti_ai_finale",
+      "source_port": "",
+      "target_port": "",
+      "condition": "always"
+    },
+    {
+      "id": "edge_23",
+      "source": "gw_retry",
+      "target": "exec_writer",
+      "source_port": "",
+      "target_port": "",
+      "condition": "on_retry"
+    }
+  ]
+}

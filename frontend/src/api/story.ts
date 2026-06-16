@@ -95,3 +95,19 @@ export function putStoryGovernance(
     body: JSON.stringify(payload),
   });
 }
+
+/** 在作者意图末尾追加一行（后端自动加「【全局】」前缀）。 */
+export function postAppendGovernanceIntentLine(projectId: string, line: string): Promise<void> {
+  return apiVoid(`/api/projects/${encodeURIComponent(projectId)}/story/selected-bundle/governance/append-intent`, {
+    method: "POST",
+    body: JSON.stringify({ line }),
+  });
+}
+
+/** 删除一条已保存的初始化快照；若删的是当前选中项，后端会先清空项目选中再删。 */
+export function deleteStoryContract(projectId: string, storyContractId: string): Promise<void> {
+  return apiVoid(
+    `/api/projects/${encodeURIComponent(projectId)}/story/contracts/${encodeURIComponent(storyContractId)}`,
+    { method: "DELETE" }
+  );
+}

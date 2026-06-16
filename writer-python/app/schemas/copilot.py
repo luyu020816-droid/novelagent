@@ -16,7 +16,7 @@ class CopilotChatRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
     project_id: str = Field(alias="projectId", min_length=1)
-    scene: Literal["init_wizard", "outline_edit", "chapter_coach"]
+    scene: Literal["init_wizard", "outline_edit", "chapter_coach", "setup_coach"]
     messages: list[CopilotChatMessage] = Field(min_length=1)
     context_blob: str | None = Field(default=None, alias="contextBlob", max_length=48000)
 

@@ -1,0 +1,23 @@
+{
+  "chapterNo": 8,
+  "label": "长篇后期-汇合前夜",
+  "chapterText": "各方势力暗流涌动，主角确认师父仍存活，为下一章汇合铺垫。",
+  "scenePlan": {
+    "beats": [
+      {"beat": "暗线", "goal": "布局"},
+      {"beat": "确认", "goal": "canon"},
+      {"beat": "对峙", "goal": "张力"},
+      {"beat": "预告", "goal": "汇合"}
+    ]
+  },
+  "criticReport": {
+    "pass": true,
+    "dimensions": [
+      {"id": "canon_facts", "ok": true, "note": ""},
+      {"id": "beat_coverage", "ok": true, "note": ""},
+      {"id": "narrative_obligations", "ok": true, "note": ""},
+      {"id": "content_compliance", "ok": true, "note": ""},
+      {"id": "chapter_length", "ok": true, "note": ""}
+    ]
+  }
+}

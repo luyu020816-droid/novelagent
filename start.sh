@@ -1,17 +1,9 @@
-# 全栈一键启动见仓库根目录 run_local.sh（含 RabbitMQ + worker.py）
-docker compose up -d
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-##前端
-cd frontend
-npm run dev
-
-##java
-cd backend-java    
-mvn spring-boot:run
-
-##python
-cd D:\novel\writer-python
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+#!/usr/bin/env bash
+# MythosForge 一键启动（Linux / macOS / Git Bash）
+# Windows PowerShell 请用同目录 start.ps1
+#
+# 拉起：Docker（postgres / redis / qdrant / neo4j）+ Java :8080 + Writer :8000 + 前端 :5173
+# 前置：writer-python/.env 含 OPENAI_API_KEY；MYTHOSFORGE_INTERNAL_TOKEN 与 Java 一致
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$ROOT/run_local.sh" "$@"

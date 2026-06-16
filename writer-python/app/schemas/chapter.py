@@ -34,25 +34,28 @@ class ChapterContract(BaseModel):
 
 
 class OutlineArchitectOutput(BaseModel):
-    """第一卷大纲叙述 + 前 20 章 Chapter Contract 草案。"""
+    """初始化阶段：一段式剧情走向；`chapters` 由 outline_chapter_draft 填充后供 initial_critic 修订。"""
 
     model_config = _CHAPTER_CONFIG
 
     first_volume_outline: str = Field(
-        description="第一卷整体大纲：主线阶段、关键转折、终局指向（非逐章正文）",
+        description="约 500～1000 字一段式剧情走向：起承转合、主线赌注、对立升级与卷末落点；不分章、不写对白",
     )
-    chapters: list[ChapterContract] = Field(description="必须恰好 20 章")
+    chapters: list[ChapterContract] = Field(
+        default_factory=list,
+        description="逐章草案（outline_chapter_draft → initial_critic）；outline_architect 单独调用时为空",
+    )
 
-    @field_validator("chapters")
+    @field_validator("first_volume_outline")
     @classmethod
-    def exactly_twenty_sequential(cls, v: list[ChapterContract]) -> list[ChapterContract]:
-        if len(v) != 20:
-            raise ValueError("chapters must contain exactly 20 items")
-        nos = [c.chapter_no for c in v]
-        expected = list(range(1, 21))
-        if sorted(nos) != expected:
-            raise ValueError(f"chapter_no must be 1..20 exactly once each, got {nos}")
-        return v
+    def plot_direction_length_band(cls, v: str) -> str:
+        s = (v or "").strip()
+        n = len(s)
+        if n < 250:
+            raise ValueError("first_volume_outline 过短：目标约 500～1000 字的一段式走向")
+        if n > 6000:
+            raise ValueError("first_volume_outline 过长：请保持一段式剧情走向，勿写成逐章纲")
+        return s
 
 
 class InitialCriticOutput(BaseModel):

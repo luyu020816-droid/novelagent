@@ -28,6 +28,7 @@ public class WriterEngineClient {
 
     private final RestClient client;
     private final RestClient initNovelClient;
+    private final RestClient chapterGenerateClient;
     private final ObjectMapper objectMapper;
     private final String writerBaseUrl;
 
@@ -46,6 +47,13 @@ public class WriterEngineClient {
         rfLong.setConnectTimeout(10_000);
         rfLong.setReadTimeout(600_000);
         this.initNovelClient = RestClient.builder().baseUrl(baseUrl).requestFactory(rfLong).build();
+
+        SimpleClientHttpRequestFactory rfChapter = new SimpleClientHttpRequestFactory();
+        rfChapter.setBufferRequestBody(true);
+        rfChapter.setConnectTimeout(30_000);
+        rfChapter.setReadTimeout(900_000);
+        this.chapterGenerateClient = RestClient.builder().baseUrl(baseUrl).requestFactory(rfChapter).build();
+
         this.objectMapper = objectMapper;
     }
 
@@ -147,6 +155,59 @@ public class WriterEngineClient {
                     .body(JsonNode.class);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize genre interview JSON", e);
+        }
+    }
+
+    /**
+     * 同步整章 LangGraph（无 SSE）：供 Java 后台任务调用；读超时约 15 分钟。
+     */
+    public JsonNode postNarrativeSetupPropose(JsonNode body) {
+        try {
+            byte[] payload = objectMapper.writeValueAsString(body).getBytes(StandardCharsets.UTF_8);
+            return client.post()
+                    .uri("/api/writer/setup/narrative-propose")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.CONNECTION, "close")
+                    .body(payload)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize narrative propose JSON", e);
+        }
+    }
+
+    public JsonNode postNarrativeSetupRevise(JsonNode body) {
+        try {
+            byte[] payload = objectMapper.writeValueAsString(body).getBytes(StandardCharsets.UTF_8);
+            return client.post()
+                    .uri("/api/writer/setup/narrative-revise")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.CONNECTION, "close")
+                    .body(payload)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize narrative revise JSON", e);
+        }
+    }
+
+    public JsonNode postChapterGenerateComplete(JsonNode body, String jobId) {
+        try {
+            String json = objectMapper.writeValueAsString(body);
+            byte[] payload = json.getBytes(StandardCharsets.UTF_8);
+            var spec = chapterGenerateClient.post()
+                    .uri("/api/writer/chapters/generate-complete")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.CONNECTION, "close");
+            if (jobId != null && !jobId.isBlank()) {
+                spec = spec.header("X-Generation-Job-Id", jobId);
+            }
+            return spec.body(payload).retrieve().body(JsonNode.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize chapter generate payload", e);
         }
     }
 }

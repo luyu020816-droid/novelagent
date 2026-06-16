@@ -1,0 +1,22 @@
+{
+  "chapterNo": 5,
+  "label": "设定违背样例",
+  "chapterText": "师父早已陨落多年，主角独自修行，未提及任何 mustRetain 事实。",
+  "scenePlan": {
+    "beats": [
+      {"beat": "a", "goal": "1"},
+      {"beat": "b", "goal": "2"},
+      {"beat": "c", "goal": "3"},
+      {"beat": "d", "goal": "4"}
+    ]
+  },
+  "criticReport": {
+    "pass": false,
+    "dimensions": [
+      {"id": "canon_facts", "ok": false, "note": "师父存活设定被违背"},
+      {"id": "beat_coverage", "ok": true, "note": ""},
+      {"id": "content_compliance", "ok": true, "note": ""},
+      {"id": "chapter_length", "ok": false, "note": "过短"}
+    ]
+  }
+}

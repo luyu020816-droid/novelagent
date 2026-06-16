@@ -59,6 +59,10 @@ public class ChapterVersionEntity {
     @Column(name = "rewrite_instruction_json")
     private JsonNode rewriteInstructionJson;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "fulfillment_report_json")
+    private JsonNode fulfillmentReportJson;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -163,6 +167,14 @@ public class ChapterVersionEntity {
 
     public void setRewriteInstructionJson(JsonNode rewriteInstructionJson) {
         this.rewriteInstructionJson = rewriteInstructionJson;
+    }
+
+    public JsonNode getFulfillmentReportJson() {
+        return fulfillmentReportJson;
+    }
+
+    public void setFulfillmentReportJson(JsonNode fulfillmentReportJson) {
+        this.fulfillmentReportJson = fulfillmentReportJson;
     }
 
     public Instant getCreatedAt() {

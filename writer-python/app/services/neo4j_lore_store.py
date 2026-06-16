@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
+from datetime import datetime, timezone
 from typing import Any
 
 from neo4j import Driver, GraphDatabase, basic_auth
@@ -63,6 +65,12 @@ def _ensure_schema(driver: Driver) -> None:
         "FOR (e:LoreEvent) REQUIRE (e.project_id, e.event_key) IS UNIQUE",
         "CREATE CONSTRAINT lore_fs_pid_key IF NOT EXISTS "
         "FOR (f:LoreForeshadow) REQUIRE (f.project_id, f.fs_key) IS UNIQUE",
+        "CREATE CONSTRAINT lore_ncc_pid_ch IF NOT EXISTS "
+        "FOR (n:LoreNarrativeChapterContext) REQUIRE (n.project_id, n.chapter_no) IS UNIQUE",
+        "CREATE CONSTRAINT lore_sl_pid_sid IF NOT EXISTS "
+        "FOR (s:LoreStoryline) REQUIRE (s.project_id, s.storyline_id) IS UNIQUE",
+        "CREATE CONSTRAINT lore_cf_pid_cid IF NOT EXISTS "
+        "FOR (c:LoreConfluence) REQUIRE (c.project_id, c.confluence_id) IS UNIQUE",
     ]
     with driver.session() as session:
         for q in stmts:
@@ -221,24 +229,245 @@ def upsert_lore_bundle(
                 continue
             fk = _fs_key(project_id, text)
             evidence = str(fs.get("evidence") or ch_evidence_default)[:4000]
+            sug_raw = fs.get("suggested_resolve_chapter", fs.get("suggestedResolveChapter"))
+            try:
+                sug = int(sug_raw) if sug_raw is not None and str(sug_raw).strip() != "" else None
+            except (TypeError, ValueError):
+                sug = None
+            imp = str(fs.get("importance") or "").strip() or None
+            explicit_abandon = fs.get("abandoned") is True or fs.get("abandoned") == "true"
             tx.run(
                 """
                 MERGE (f:LoreForeshadow {project_id: $pid, fs_key: $fk})
                 SET f.text = $text,
                     f.chapter_no = coalesce(f.chapter_no, $ch),
                     f.evidence = $evidence,
-                    f.resolved = coalesce(f.resolved, false)
+                    f.resolved = coalesce(f.resolved, false),
+                    f.suggested_resolve_chapter = coalesce($sug, f.suggested_resolve_chapter),
+                    f.importance = coalesce($imp, f.importance, 'medium'),
+                    f.abandoned = CASE WHEN $explicit_abandon THEN true ELSE coalesce(f.abandoned, false) END
                 """,
                 pid=project_id,
                 fk=fk,
                 text=text[:4000],
                 ch=chapter_no,
                 evidence=evidence,
+                sug=sug,
+                imp=imp,
+                explicit_abandon=explicit_abandon,
             )
 
     with driver.session() as session:
         session.execute_write(work)
     logger.info("[Neo4j] lore upsert project=%s chapter=%s", project_id, chapter_no)
+
+
+def upsert_narrative_chapter_context(
+    *, project_id: str, chapter_no: int, obligations: dict[str, Any]
+) -> None:
+    """定稿后同步：本章 PG 任务单快照（与 LoreForeshadow 等并列，便于图查询剧情节拍）。"""
+    driver = get_driver()
+    if driver is None:
+        return
+    summary = str(obligations.get("summaryLine") or "")[:4000]
+    raw = json.dumps(obligations, ensure_ascii=False)
+    if len(raw) > 120_000:
+        raw = raw[:120_000]
+    ts = datetime.now(timezone.utc).isoformat()
+
+    def work(tx) -> None:
+        tx.run(
+            """
+            MERGE (n:LoreNarrativeChapterContext {project_id: $pid, chapter_no: $ch})
+            SET n.obligations_json = $json,
+                n.summary_line = $sum,
+                n.updated_at = $ts
+            """,
+            pid=project_id,
+            ch=chapter_no,
+            json=raw,
+            sum=summary,
+            ts=ts,
+        )
+
+    with driver.session() as session:
+        session.execute_write(work)
+    logger.info("[Neo4j] narrative chapter context project=%s chapter=%s", project_id, chapter_no)
+
+
+def upsert_narrative_structure_sync(
+    *, project_id: str, storylines: list[dict[str, Any]], confluences: list[dict[str, Any]]
+) -> None:
+    """将 PG 故事线 / 汇合点同步为 Neo4j 节点（与 Lore 图谱并列）。"""
+    driver = get_driver()
+    if driver is None:
+        return
+    ts = datetime.now(timezone.utc).isoformat()
+
+    def work(tx) -> None:
+        for sl in storylines:
+            if not isinstance(sl, dict):
+                continue
+            sid = str(sl.get("id") or "")
+            if not sid:
+                continue
+            tx.run(
+                """
+                MERGE (s:LoreStoryline {project_id: $pid, storyline_id: $sid})
+                SET s.storyline_key = $key,
+                    s.title = $title,
+                    s.status = $status,
+                    s.updated_at = $ts
+                """,
+                pid=project_id,
+                sid=sid,
+                key=str(sl.get("storylineKey") or sl.get("storyline_key") or "")[:64],
+                title=str(sl.get("title") or "")[:512],
+                status=str(sl.get("status") or "ACTIVE")[:32],
+                ts=ts,
+            )
+            parent = sl.get("parentStorylineId") or sl.get("parent_storyline_id")
+            if parent:
+                tx.run(
+                    """
+                    MATCH (p:LoreStoryline {project_id: $pid, storyline_id: $parent})
+                    MATCH (c:LoreStoryline {project_id: $pid, storyline_id: $child})
+                    MERGE (p)-[r:LORE_PARENT_STORYLINE {project_id: $pid}]->(c)
+                    SET r.updated_at = $ts
+                    """,
+                    pid=project_id,
+                    parent=str(parent),
+                    child=sid,
+                    ts=ts,
+                )
+        for cf in confluences:
+            if not isinstance(cf, dict):
+                continue
+            cid = str(cf.get("id") or "")
+            if not cid:
+                continue
+            tx.run(
+                """
+                MERGE (c:LoreConfluence {project_id: $pid, confluence_id: $cid})
+                SET c.confluence_type = $ctype,
+                    c.target_chapter = $tch,
+                    c.resolved = $resolved,
+                    c.context_summary = $ctx,
+                    c.updated_at = $ts
+                """,
+                pid=project_id,
+                cid=cid,
+                ctype=str(cf.get("confluenceType") or cf.get("confluence_type") or "intersect")[:32],
+                tch=int(cf.get("targetChapter") or cf.get("target_chapter") or 0),
+                resolved=bool(cf.get("resolved")),
+                ctx=str(cf.get("contextSummary") or cf.get("context_summary") or "")[:4000],
+                ts=ts,
+            )
+            primary = cf.get("primaryStorylineId") or cf.get("primary_storyline_id")
+            secondary = cf.get("secondaryStorylineId") or cf.get("secondary_storyline_id")
+            if primary:
+                tx.run(
+                    """
+                    MATCH (s:LoreStoryline {project_id: $pid, storyline_id: $sid})
+                    MATCH (c:LoreConfluence {project_id: $pid, confluence_id: $cid})
+                    MERGE (s)-[r:LORE_CONFLUENCE_PRIMARY {project_id: $pid}]->(c)
+                    SET r.updated_at = $ts
+                    """,
+                    pid=project_id,
+                    sid=str(primary),
+                    cid=cid,
+                    ts=ts,
+                )
+            if secondary:
+                tx.run(
+                    """
+                    MATCH (s:LoreStoryline {project_id: $pid, storyline_id: $sid})
+                    MATCH (c:LoreConfluence {project_id: $pid, confluence_id: $cid})
+                    MERGE (s)-[r:LORE_CONFLUENCE_SECONDARY {project_id: $pid}]->(c)
+                    SET r.updated_at = $ts
+                    """,
+                    pid=project_id,
+                    sid=str(secondary),
+                    cid=cid,
+                    ts=ts,
+                )
+
+    with driver.session() as session:
+        session.execute_write(work)
+    logger.info(
+        "[Neo4j] narrative structure sync project=%s storylines=%s confluences=%s",
+        project_id,
+        len(storylines),
+        len(confluences),
+    )
+
+
+def list_unresolved_foreshadow_planted_before_chapter(
+    *, project_id: str, before_chapter_no: int, limit: int = 40
+) -> list[dict[str, Any]]:
+    """伏笔在本章之前埋设且仍未回收的候选项（供定稿回收判定）；不含本章刚 ingest 的新钩。"""
+    driver = get_driver()
+    if driver is None:
+        return []
+
+    def read_tx(tx):
+        rows = tx.run(
+            """
+            MATCH (f:LoreForeshadow {project_id: $pid})
+            WHERE coalesce(f.resolved, false) = false
+              AND coalesce(f.abandoned, false) = false
+              AND coalesce(f.chapter_no, 0) < $before_ch
+            RETURN f.fs_key AS fs_key, f.text AS text, f.chapter_no AS chapter_no
+            ORDER BY coalesce(f.chapter_no, 0) ASC
+            LIMIT $lim
+            """,
+            pid=project_id,
+            before_ch=before_chapter_no,
+            lim=limit,
+        )
+        return [dict(r) for r in rows]
+
+    with driver.session() as session:
+        return list(session.execute_read(read_tx))
+
+
+def mark_foreshadows_resolved(
+    *, project_id: str, resolved_in_chapter_no: int, fs_keys: list[str]
+) -> int:
+    """将给定 fs_key 标为已回收（幂等：已 resolved 的节点不重复计数）。"""
+    keys = [k for k in fs_keys if isinstance(k, str) and k.strip()]
+    if not keys:
+        return 0
+    driver = get_driver()
+    if driver is None:
+        return 0
+
+    def work(tx) -> int:
+        rec = tx.run(
+            """
+            MATCH (f:LoreForeshadow {project_id: $pid})
+            WHERE f.fs_key IN $keys AND coalesce(f.resolved, false) = false
+            SET f.resolved = true,
+                f.resolved_chapter_no = $rch
+            RETURN count(f) AS c
+            """,
+            pid=project_id,
+            keys=keys,
+            rch=resolved_in_chapter_no,
+        )
+        row = rec.single()
+        return int(row["c"]) if row and row.get("c") is not None else 0
+
+    with driver.session() as session:
+        updated = int(session.execute_write(work))
+    if updated:
+        logger.info(
+            "[Neo4j] foreshadow resolved project=%s chapter=%s count=%s",
+            project_id,
+            resolved_in_chapter_no,
+            updated,
+        )
+    return updated
 
 
 def recall_for_chapter(
@@ -323,7 +552,10 @@ def recall_for_chapter(
             """
             MATCH (f:LoreForeshadow {project_id: $pid})
             WHERE coalesce(f.resolved, false) = false
-            RETURN f.text AS text, f.chapter_no AS chapter_no, f.evidence AS evidence
+              AND coalesce(f.abandoned, false) = false
+            RETURN f.fs_key AS fs_key, f.text AS text, f.chapter_no AS chapter_no, f.evidence AS evidence,
+                   f.suggested_resolve_chapter AS suggested_resolve_chapter,
+                   f.importance AS importance, f.abandoned AS abandoned
             ORDER BY coalesce(f.chapter_no, 0) ASC
             LIMIT $flim
             """,
@@ -412,8 +644,11 @@ def export_snapshot(*, project_id: str, limits: tuple[int, int, int] = (400, 400
             tx.run(
                 """
                 MATCH (f:LoreForeshadow {project_id: $pid})
-                RETURN f.text AS text, f.chapter_no AS chapter_no, f.evidence AS evidence,
-                       coalesce(f.resolved, false) AS resolved
+                RETURN f.fs_key AS fs_key, f.text AS text, f.chapter_no AS chapter_no, f.evidence AS evidence,
+                       coalesce(f.resolved, false) AS resolved,
+                       f.resolved_chapter_no AS resolved_chapter_no,
+                       f.suggested_resolve_chapter AS suggested_resolve_chapter,
+                       f.importance AS importance, f.abandoned AS abandoned
                 ORDER BY coalesce(f.chapter_no, 0) ASC
                 LIMIT $lim
                 """,

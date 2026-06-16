@@ -15,6 +15,7 @@ _SCENE_FILES = {
     "init_wizard": "copilot_init_wizard.md",
     "outline_edit": "copilot_outline_edit.md",
     "chapter_coach": "copilot_chapter_coach.md",
+    "setup_coach": "copilot_setup_coach.md",
 }
 
 

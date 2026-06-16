@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     embedding_api_key: str | None = None
     embedding_openai_base_url: str | None = None
     vector_sync_enabled: bool = True
+    #: Qdrant cosine 相似度下限（越高越严）；低于阈值的检索块不进入 Curator
+    vector_min_score: float = 0.72
+    vector_query_limit: int = 3
 
     # Day 12：Neo4j 世界观图谱（docker-compose 默认 neo4j / mythosforge）
     neo4j_enabled: bool = True

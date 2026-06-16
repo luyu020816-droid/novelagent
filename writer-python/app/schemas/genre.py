@@ -39,6 +39,10 @@ class GenreRecommendRequest(BaseModel):
         default=None,
         description="可选：作者一两句故事线/创意；若填写则各 Agent 须与之对齐",
     )
+    unique_direction: bool = Field(
+        default=False,
+        description="为 true 时跳过多候选 Scout，单轮锁定唯一题材（candidateRankings 三条同向占位）",
+    )
     project_id: str | None = Field(default=None, description="可选，用于 llm_usage_log")
 
 

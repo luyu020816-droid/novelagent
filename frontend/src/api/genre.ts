@@ -101,6 +101,8 @@ export type GenreStoryHookStreamRequest = {
   targetPlatform?: string;
   genderChannel?: string;
   riskPreference?: string;
+  /** Skill 定稿后：Writer 单轮唯一题材锁定，无 Scout 多备选 */
+  uniqueDirection?: boolean;
 };
 
 /** SSE：同一 Writer 流水线，请求体带 storyHook（偏好在后端填空数组）。 */
@@ -175,16 +177,28 @@ export type GenreInterviewResponse = {
   persistedNovelSeedContractId?: string | null;
 };
 
-/** 路径 B：多轮互动采访（非流式）。 */
+export type GenreInterviewRequestBody = {
+  chatHistory: GenreInterviewChatTurn[];
+  /** 若提供，Writer 注入对应 Skill 全文，模型据此追问细节；可与空 chatHistory 配合自动开场。 */
+  writerSkillId?: string | null;
+};
+
+/** 路径 B：多轮互动采访（非流式）。可选 writerSkillId 进入 Skill 确认模式。 */
 export function postGenreInterview(
   projectId: string,
-  chatHistory: GenreInterviewChatTurn[]
+  chatHistory: GenreInterviewChatTurn[],
+  options?: { writerSkillId?: string | null }
 ): Promise<GenreInterviewResponse> {
+  const body: GenreInterviewRequestBody = { chatHistory };
+  const sid = options?.writerSkillId?.trim();
+  if (sid) {
+    body.writerSkillId = sid;
+  }
   return apiJson<GenreInterviewResponse>(
     `/api/projects/${encodeURIComponent(projectId)}/genre/interview`,
     {
       method: "POST",
-      body: JSON.stringify({ chatHistory }),
+      body: JSON.stringify(body),
     }
   );
 }

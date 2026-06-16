@@ -7,8 +7,10 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.mythosforge.chapter.ChapterContractEntity;
 import com.mythosforge.chapter.ChapterContractRepository;
+import com.mythosforge.chapter.ChapterPrewritePlanRepository;
 import com.mythosforge.genre.GenreDecisionContract;
 import com.mythosforge.genre.GenreDecisionContractRepository;
+import com.mythosforge.narrative.NarrativeBootstrapService;
 import com.mythosforge.project.Project;
 import com.mythosforge.project.ProjectRepository;
 import com.mythosforge.story.dto.StoryInitResponse;
@@ -30,7 +32,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 初始化流水线：解析题材 → 调 Writer init-novel（阻塞或 SSE）→ 落库 novel_seed / story_contract / chapter_contracts，
+ * 初始化流水线：解析题材 → 调 Writer init-novel（阻塞或 SSE）→ 落库 novel_seed / story_contract / chapter_contracts（默认 20 章），
  * 并维护 {@link com.mythosforge.project.Project#setSelectedStoryContractId 当前选中快照}。
  */
 @Service
@@ -41,8 +43,10 @@ public class StoryService {
     private final NovelSeedContractRepository novelSeedContractRepository;
     private final StoryContractRepository storyContractRepository;
     private final ChapterContractRepository chapterContractRepository;
+    private final ChapterPrewritePlanRepository chapterPrewritePlanRepository;
     private final WriterEngineClient writerEngineClient;
     private final WriterSseProxyService writerSseProxyService;
+    private final NarrativeBootstrapService narrativeBootstrapService;
     private final ObjectMapper objectMapper;
 
     public StoryService(
@@ -51,8 +55,10 @@ public class StoryService {
             NovelSeedContractRepository novelSeedContractRepository,
             StoryContractRepository storyContractRepository,
             ChapterContractRepository chapterContractRepository,
+            ChapterPrewritePlanRepository chapterPrewritePlanRepository,
             WriterEngineClient writerEngineClient,
             WriterSseProxyService writerSseProxyService,
+            NarrativeBootstrapService narrativeBootstrapService,
             ObjectMapper objectMapper
     ) {
         this.projectRepository = projectRepository;
@@ -60,9 +66,16 @@ public class StoryService {
         this.novelSeedContractRepository = novelSeedContractRepository;
         this.storyContractRepository = storyContractRepository;
         this.chapterContractRepository = chapterContractRepository;
+        this.chapterPrewritePlanRepository = chapterPrewritePlanRepository;
         this.writerEngineClient = writerEngineClient;
         this.writerSseProxyService = writerSseProxyService;
+        this.narrativeBootstrapService = narrativeBootstrapService;
         this.objectMapper = objectMapper;
+    }
+
+    @Transactional
+    public void selectStoryBundleForProject(String projectId, String storyContractId) {
+        selectStoryBundleOnProject(projectId, storyContractId);
     }
 
     private GenreDecisionContract resolveGenreForInit(Project project) {
@@ -249,8 +262,11 @@ public class StoryService {
         }
 
         JsonNode chapterContractsNode = root.get("chapterContracts");
-        if (chapterContractsNode == null || chapterContractsNode.isNull() || !chapterContractsNode.isArray()) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Writer response missing chapterContracts array");
+        if (chapterContractsNode == null || chapterContractsNode.isNull()) {
+            chapterContractsNode = objectMapper.createArrayNode();
+        }
+        if (!chapterContractsNode.isArray()) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Writer response chapterContracts must be an array");
         }
         JsonNode firstVolNode = root.get("firstVolumeOutline");
         String firstVolumeOutline = "";
@@ -307,13 +323,14 @@ public class StoryService {
             row.setRawJson(ch);
             chapterRows.add(row);
         }
-        if (chapterRows.size() != 20) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    "Expected 20 chapter contracts, got " + chapterRows.size()
-            );
-        }
         chapterContractRepository.saveAll(chapterRows);
+
+        Project project = projectRepository.findById(projectId).orElse(null);
+        GenreDecisionContract genre = null;
+        if (project != null && project.getSelectedGenreContractId() != null) {
+            genre = genreDecisionContractRepository.findById(project.getSelectedGenreContractId()).orElse(null);
+        }
+        narrativeBootstrapService.bootstrapAfterStoryInit(projectId, storyContract, genre, firstVolumeOutline);
 
         return new StoryInitResponse(
                 novelSeedId,
@@ -360,6 +377,30 @@ public class StoryService {
         storyContractRepository.save(story);
     }
 
+    /** 在现有作者意图后追加一行（全书用语/风格类长期约束），不改动 nonNegotiables。 */
+    @Transactional
+    public void appendSelectedAuthorIntentLine(String projectId, String line) {
+        String l = line != null ? line.trim() : "";
+        if (l.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "追加内容不能为空");
+        }
+        Project p = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        String sid = p.getSelectedStoryContractId();
+        if (sid == null || sid.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "项目未选定初始化快照");
+        }
+        StoryContractEntity story = storyContractRepository.findById(sid)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "快照不存在"));
+        if (!projectId.equals(story.getProjectId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "快照不属于该项目");
+        }
+        String cur = story.getAuthorIntent() != null ? story.getAuthorIntent() : "";
+        String sep = cur.isBlank() ? "" : "\n\n";
+        story.setAuthorIntent((cur + sep + "【全局】" + l).trim());
+        storyContractRepository.save(story);
+    }
+
     @Transactional
     public void updateSelectedFirstVolumeOutline(String projectId, String outline) {
         Project p = projectRepository.findById(projectId)
@@ -375,5 +416,27 @@ public class StoryService {
         }
         story.setFirstVolumeOutline(outline != null ? outline : "");
         storyContractRepository.save(story);
+    }
+
+    /** 删除一条已保存的初始化快照；若为当前选中，会先清空项目的选中快照再删除。级联删除该快照下的章纲与动笔前摘要行。 */
+    @Transactional
+    public void deleteStoryContract(String projectId, String storyContractId) {
+        if (storyContractId == null || storyContractId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "storyContractId 不能为空");
+        }
+        Project p = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        StoryContractEntity s = storyContractRepository.findById(storyContractId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (!projectId.equals(s.getProjectId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "快照不属于该项目");
+        }
+        if (storyContractId.equals(p.getSelectedStoryContractId())) {
+            p.setSelectedStoryContractId(null);
+            projectRepository.save(p);
+        }
+        chapterPrewritePlanRepository.deleteByStoryContractId(storyContractId);
+        chapterContractRepository.deleteByStoryContractId(storyContractId);
+        storyContractRepository.deleteById(storyContractId);
     }
 }

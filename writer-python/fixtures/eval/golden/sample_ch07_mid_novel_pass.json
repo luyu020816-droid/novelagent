@@ -1,0 +1,23 @@
+{
+  "chapterNo": 7,
+  "label": "长篇中期-设定稳定",
+  "chapterText": "第七十回，师父仍守后山，mustRetain 事实逐一呼应，双线并进。",
+  "scenePlan": {
+    "beats": [
+      {"beat": "回顾", "goal": "承接上章"},
+      {"beat": "冲突", "goal": "外敌压境"},
+      {"beat": "抉择", "goal": "守山"},
+      {"beat": "钩子", "goal": "新伏笔"}
+    ]
+  },
+  "criticReport": {
+    "pass": true,
+    "dimensions": [
+      {"id": "canon_facts", "ok": true, "note": ""},
+      {"id": "beat_coverage", "ok": true, "note": ""},
+      {"id": "content_compliance", "ok": true, "note": ""},
+      {"id": "chapter_length", "ok": true, "note": ""},
+      {"id": "outline_adherence", "ok": true, "note": ""}
+    ]
+  }
+}

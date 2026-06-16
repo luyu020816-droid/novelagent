@@ -1,0 +1,13 @@
+version: 1
+profile_id: default
+# severity: block | review | log
+categories:
+  politics:
+    severity: block
+    file: politics.txt
+  porn:
+    severity: block
+    file: porn.txt
+  compliance_caution:
+    severity: review
+    file: caution.txt

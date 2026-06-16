@@ -1,11 +1,14 @@
 package com.mythosforge.project;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 
@@ -43,6 +46,51 @@ public class Project {
     /** 丛书/同人预设（如 hp_fan），章节生成与初始化时传给 Writer。 */
     @Column(name = "fan_series_preset")
     private String fanSeriesPreset;
+
+    /** 可选：全书叙事阶段（如 ACTIVE、PAUSED_ERROR），详见 docs/narrative-checkpoint-and-fuse.md */
+    @Column(name = "narrative_phase", length = 64)
+    private String narrativePhase;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "narrative_checkpoint_json")
+    private JsonNode narrativeCheckpointJson;
+
+    @Column(name = "autopilot_mode", nullable = false, length = 32)
+    private String autopilotMode = "MANUAL";
+
+    @Column(name = "auto_accept_policy", nullable = false, length = 32)
+    private String autoAcceptPolicy = "NEVER";
+
+    @Column(name = "max_auto_chapters_per_run", nullable = false)
+    private int maxAutoChaptersPerRun = 20;
+
+    @Column(name = "autopilot_chapters_this_run", nullable = false)
+    private int autopilotChaptersThisRun = 0;
+
+    @Column(name = "autopilot_paused", nullable = false)
+    private boolean autopilotPaused = false;
+
+    @Column(name = "autopilot_pause_reason", columnDefinition = "text")
+    private String autopilotPauseReason;
+
+    @Column(name = "pause_on_vector_sync_failed", nullable = false)
+    private boolean pauseOnVectorSyncFailed = true;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "narrative_domain_json")
+    private JsonNode narrativeDomainJson;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "autopilot_last_action_json")
+    private JsonNode autopilotLastActionJson;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "narrative_accept_policy_json")
+    private JsonNode narrativeAcceptPolicyJson;
+
+    /** 创作向导入口：standard | skill */
+    @Column(name = "setup_mode", length = 32)
+    private String setupMode;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -134,6 +182,110 @@ public class Project {
 
     public void setFanSeriesPreset(String fanSeriesPreset) {
         this.fanSeriesPreset = fanSeriesPreset;
+    }
+
+    public String getNarrativePhase() {
+        return narrativePhase;
+    }
+
+    public void setNarrativePhase(String narrativePhase) {
+        this.narrativePhase = narrativePhase;
+    }
+
+    public JsonNode getNarrativeCheckpointJson() {
+        return narrativeCheckpointJson;
+    }
+
+    public void setNarrativeCheckpointJson(JsonNode narrativeCheckpointJson) {
+        this.narrativeCheckpointJson = narrativeCheckpointJson;
+    }
+
+    public String getAutopilotMode() {
+        return autopilotMode;
+    }
+
+    public void setAutopilotMode(String autopilotMode) {
+        this.autopilotMode = autopilotMode;
+    }
+
+    public String getAutoAcceptPolicy() {
+        return autoAcceptPolicy;
+    }
+
+    public void setAutoAcceptPolicy(String autoAcceptPolicy) {
+        this.autoAcceptPolicy = autoAcceptPolicy;
+    }
+
+    public int getMaxAutoChaptersPerRun() {
+        return maxAutoChaptersPerRun;
+    }
+
+    public void setMaxAutoChaptersPerRun(int maxAutoChaptersPerRun) {
+        this.maxAutoChaptersPerRun = maxAutoChaptersPerRun;
+    }
+
+    public int getAutopilotChaptersThisRun() {
+        return autopilotChaptersThisRun;
+    }
+
+    public void setAutopilotChaptersThisRun(int autopilotChaptersThisRun) {
+        this.autopilotChaptersThisRun = autopilotChaptersThisRun;
+    }
+
+    public boolean getAutopilotPaused() {
+        return autopilotPaused;
+    }
+
+    public void setAutopilotPaused(boolean autopilotPaused) {
+        this.autopilotPaused = autopilotPaused;
+    }
+
+    public String getAutopilotPauseReason() {
+        return autopilotPauseReason;
+    }
+
+    public void setAutopilotPauseReason(String autopilotPauseReason) {
+        this.autopilotPauseReason = autopilotPauseReason;
+    }
+
+    public boolean isPauseOnVectorSyncFailed() {
+        return pauseOnVectorSyncFailed;
+    }
+
+    public void setPauseOnVectorSyncFailed(boolean pauseOnVectorSyncFailed) {
+        this.pauseOnVectorSyncFailed = pauseOnVectorSyncFailed;
+    }
+
+    public JsonNode getNarrativeDomainJson() {
+        return narrativeDomainJson;
+    }
+
+    public void setNarrativeDomainJson(JsonNode narrativeDomainJson) {
+        this.narrativeDomainJson = narrativeDomainJson;
+    }
+
+    public JsonNode getAutopilotLastActionJson() {
+        return autopilotLastActionJson;
+    }
+
+    public void setAutopilotLastActionJson(JsonNode autopilotLastActionJson) {
+        this.autopilotLastActionJson = autopilotLastActionJson;
+    }
+
+    public JsonNode getNarrativeAcceptPolicyJson() {
+        return narrativeAcceptPolicyJson;
+    }
+
+    public void setNarrativeAcceptPolicyJson(JsonNode narrativeAcceptPolicyJson) {
+        this.narrativeAcceptPolicyJson = narrativeAcceptPolicyJson;
+    }
+
+    public String getSetupMode() {
+        return setupMode;
+    }
+
+    public void setSetupMode(String setupMode) {
+        this.setupMode = setupMode;
     }
 
     public Instant getCreatedAt() {
